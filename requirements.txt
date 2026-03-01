@@ -1,23 +1,46 @@
+# =============================================================================
+# SKYPLUS 1.0 — requirements.txt
+# Versiones fijas para reproducibilidad en Docker
+# =============================================================================
+
+# --- Core ---
 pydantic<2.0
 setuptools
-streamlit
-pandas
-numpy
-matplotlib
-plotly
-folium
-streamlit-folium
-geopy
-requests
-lxml
-beautifulsoup4
-ladybug-core==0.43.18
+wheel
+
+# --- Streamlit y UI ---
+streamlit==1.32.0
+streamlit-folium==0.18.0
 streamlit-vtkjs==0.3.2
+folium==0.16.0
+plotly==5.19.0
+
+# --- Datos y geo ---
+pandas==2.2.1
+numpy==1.26.4
+requests==2.31.0
+geopy==2.4.1
+lxml==5.1.0
+beautifulsoup4==4.12.3
+
+# --- Ladybug Tools (versiones compatibles entre sí) ---
 ladybug-geometry==1.33.11
-ladybug-display
-ladybug-vtk
+ladybug-core==0.43.18
+ladybug-display==0.6.11
+ladybug-vtk==0.15.4
+
+# --- Honeybee ---
 honeybee-core==1.60.0
-honeybee-display
 honeybee-energy==1.109.27
+honeybee-display==0.4.4
 honeybee-vtk==0.39.1
+
+# --- Dragonfly ---
 dragonfly-core==1.57.11
+lbt-dragonfly==0.6.41
+
+# --- OpenStudio bridge (requerido por honeybee-energy para traducir IDF) ---
+honeybee-openstudio==0.4.4
+
+# --- Matplotlib (legacy, puede usarse en charts) ---
+matplotlib==3.8.3
