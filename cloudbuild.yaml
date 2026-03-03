@@ -1,0 +1,54 @@
+# cloudbuild.yaml
+# Google Cloud Build — pipeline de CI/CD para SkyPlus
+# Uso: gcloud builds submit --config cloudbuild.yaml
+# Artifact Registry (reemplaza gcr.io deprecado)
+# =============================================================================
+
+steps:
+  # 1. Build de la imagen Docker
+  - name: 'gcr.io/cloud-builders/docker'
+    args:
+      - 'build'
+      - '-t'
+      - 'us-central1-docker.pkg.dev/$PROJECT_ID/skyplus/app:$COMMIT_SHA'
+      - '-t'
+      - 'us-central1-docker.pkg.dev/$PROJECT_ID/skyplus/app:latest'
+      - '.'
+    timeout: '1200s'   # 20 min — EnergyPlus es grande
+
+  # 2. Push al Artifact Registry
+  - name: 'gcr.io/cloud-builders/docker'
+    args:
+      - 'push'
+      - 'us-central1-docker.pkg.dev/$PROJECT_ID/skyplus/app:$COMMIT_SHA'
+
+  - name: 'gcr.io/cloud-builders/docker'
+    args:
+      - 'push'
+      - 'us-central1-docker.pkg.dev/$PROJECT_ID/skyplus/app:latest'
+
+  # 3. Deploy a Cloud Run
+  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+    entrypoint: gcloud
+    args:
+      - 'run'
+      - 'deploy'
+      - 'skyplus'
+      - '--image=us-central1-docker.pkg.dev/$PROJECT_ID/skyplus/app:$COMMIT_SHA'
+      - '--region=us-central1'
+      - '--platform=managed'
+      - '--allow-unauthenticated'
+      - '--port=8080'
+      - '--memory=4Gi'
+      - '--cpu=2'
+      - '--timeout=600'
+      - '--concurrency=5'
+      - '--min-instances=0'
+      - '--max-instances=3'
+      - '--set-env-vars=ENERGYPLUS_EXEC=/usr/local/bin/energyplus'
+
+images:
+  - 'us-central1-docker.pkg.dev/$PROJECT_ID/skyplus/app:$COMMIT_SHA'
+  - 'us-central1-docker.pkg.dev/$PROJECT_ID/skyplus/app:latest'
+
+timeout: '1800s'
