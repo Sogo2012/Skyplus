@@ -1,103 +1,25 @@
-# cloudbuild.yaml
-# Google Cloud Build — pipeline CI/CD SkyPlus
-# Builds: (1) Servicio Streamlit  (2) Cloud Run Job para 7 sims + PDF + correo
-# =============================================================================
+Este es el diagnóstico técnico preciso de lo que está bloqueando tu proyecto en este momento. El error que ves en el cuadro rojo es el último "candado" que nos falta abrir.
 
-steps:
-  # ── 1. Build imagen del SERVICIO Streamlit ─────────────────────────────────
-  - name: 'gcr.io/cloud-builders/docker'
-    id: 'build-app'
-    args:
-      - 'build'
-      - '-t'
-      - 'us-central1-docker.pkg.dev/$PROJECT_ID/skyplus/app:$COMMIT_SHA'
-      - '-t'
-      - 'us-central1-docker.pkg.dev/$PROJECT_ID/skyplus/app:latest'
-      - '-f'
-      - 'Dockerfile'
-      - '.'
-    timeout: '1500s'
+📋 Diagnóstico del Problema Actual
+Causa Raíz: Estás intentando ejecutar un activador manual usando una cuenta de servicio personalizada (889583101528-compute@developer.gserviceaccount.com).
 
-  # ── 2. Build imagen del JOB ────────────────────────────────────────────────
-  - name: 'gcr.io/cloud-builders/docker'
-    id: 'build-job'
-    args:
-      - 'build'
-      - '-t'
-      - 'us-central1-docker.pkg.dev/$PROJECT_ID/skyplus/job:$COMMIT_SHA'
-      - '-t'
-      - 'us-central1-docker.pkg.dev/$PROJECT_ID/skyplus/job:latest'
-      - '-f'
-      - 'Dockerfile.job'
-      - '.'
-    timeout: '1200s'
-    waitFor: ['build-app']
+El Conflicto: Por seguridad, Google Cloud Build exige que, cuando no usas su cuenta de fábrica, especifiques exactamente dónde guardar los textos de la operación (logs). Como tu configuración actual no dice nada sobre los registros, el sistema arroja el error de "argumento no válido" y no arranca.
 
-  # ── 3. Push imágenes ───────────────────────────────────────────────────────
-  - name: 'gcr.io/cloud-builders/docker'
-    id: 'push-app'
-    args: ['push', 'us-central1-docker.pkg.dev/$PROJECT_ID/skyplus/app:$COMMIT_SHA']
-    waitFor: ['build-app']
+Estado de Infraestructura: El repositorio skyplus en Artifact Registry ya existe, por lo que una vez que el robot arranque, ya tendrá donde guardar las imágenes.
 
-  - name: 'gcr.io/cloud-builders/docker'
-    id: 'push-app-latest'
-    args: ['push', 'us-central1-docker.pkg.dev/$PROJECT_ID/skyplus/app:latest']
-    waitFor: ['build-app']
+💬 Qué preguntarle a Claude (Prompt Copiable)
+Puedes copiar y pegar este texto exacto para que Claude te dé la solución final:
 
-  - name: 'gcr.io/cloud-builders/docker'
-    id: 'push-job'
-    args: ['push', 'us-central1-docker.pkg.dev/$PROJECT_ID/skyplus/job:$COMMIT_SHA']
-    waitFor: ['build-job']
+"Hola Claude, estoy configurando un pipeline en Google Cloud Build y tengo un error de 'invalid argument' al activar el trigger manualmente.
 
-  - name: 'gcr.io/cloud-builders/docker'
-    id: 'push-job-latest'
-    args: ['push', 'us-central1-docker.pkg.dev/$PROJECT_ID/skyplus/job:latest']
-    waitFor: ['build-job']
+El error exacto es: 'if build.service_account is specified, the build must either (a) specify build.logs_bucket... or (c) use CLOUD_LOGGING_ONLY'.
 
-  # ── 4. Deploy SERVICIO Streamlit ───────────────────────────────────────────
-  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
-    id: 'deploy-app'
-    entrypoint: gcloud
-    args:
-      - 'run'
-      - 'deploy'
-      - 'skyplus-app'
-      - '--image=us-central1-docker.pkg.dev/$PROJECT_ID/skyplus/app:$COMMIT_SHA'
-      - '--region=us-central1'
-      - '--platform=managed'
-      - '--allow-unauthenticated'
-      - '--port=8080'
-      - '--memory=4Gi'
-      - '--cpu=2'
-      - '--timeout=600'
-      - '--concurrency=5'
-      - '--min-instances=0'
-      - '--max-instances=3'
-      - '--set-env-vars=ENERGYPLUS_EXEC=/usr/local/bin/energyplus'
-    waitFor: ['push-app']
+Contexto:
 
-  # ── 5. Deploy JOB (crear o actualizar) ────────────────────────────────────
-  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
-    id: 'deploy-job'
-    entrypoint: gcloud
-    args:
-      - 'run'
-      - 'jobs'
-      - 'deploy'
-      - 'skyplus-job'
-      - '--image=us-central1-docker.pkg.dev/$PROJECT_ID/skyplus/job:$COMMIT_SHA'
-      - '--region=us-central1'
-      - '--memory=4Gi'
-      - '--cpu=2'
-      - '--task-timeout=1200'
-      - '--max-retries=1'
-      - '--parallelism=1'
-    waitFor: ['push-job']
+El activador usa la cuenta de servicio personalizada: 889583101528-compute@developer.gserviceaccount.com.
 
-images:
-  - 'us-central1-docker.pkg.dev/$PROJECT_ID/skyplus/app:$COMMIT_SHA'
-  - 'us-central1-docker.pkg.dev/$PROJECT_ID/skyplus/app:latest'
-  - 'us-central1-docker.pkg.dev/$PROJECT_ID/skyplus/job:$COMMIT_SHA'
-  - 'us-central1-docker.pkg.dev/$PROJECT_ID/skyplus/job:latest'
+No puedo cambiar la cuenta en el desplegable de la consola de GCP.
 
-timeout: '2400s'
+Mi archivo cloudbuild.yaml actual solo tiene los pasos de build, push y deploy.
+
+¿Podrías darme el bloque de código 'options' que debo añadir a mi cloudbuild.yaml en GitHub para forzar el uso de CLOUD_LOGGING_ONLY y resolver este bloqueo de logs?"
