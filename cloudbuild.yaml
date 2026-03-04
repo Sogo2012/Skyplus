@@ -1,4 +1,10 @@
+# cloudbuild.yaml
+# Google Cloud Build — pipeline CI/CD SkyPlus
+# Builds: (1) Servicio Streamlit  (2) Cloud Run Job para 7 sims + PDF + correo
+# =============================================================================
+
 steps:
+  # ── 1. Build imagen del SERVICIO Streamlit ─────────────────────────────────
   - name: 'gcr.io/cloud-builders/docker'
     id: 'build-app'
     args:
@@ -12,6 +18,7 @@ steps:
       - '.'
     timeout: '1200s'
 
+  # ── 2. Build imagen del JOB ────────────────────────────────────────────────
   - name: 'gcr.io/cloud-builders/docker'
     id: 'build-job'
     args:
@@ -26,6 +33,7 @@ steps:
     timeout: '1200s'
     waitFor: ['build-app']
 
+  # ── 3. Push imágenes ───────────────────────────────────────────────────────
   - name: 'gcr.io/cloud-builders/docker'
     id: 'push-app'
     args: ['push', 'us-central1-docker.pkg.dev/$PROJECT_ID/skyplus/app:$COMMIT_SHA']
@@ -46,6 +54,7 @@ steps:
     args: ['push', 'us-central1-docker.pkg.dev/$PROJECT_ID/skyplus/job:latest']
     waitFor: ['build-job']
 
+  # ── 4. Deploy SERVICIO Streamlit ───────────────────────────────────────────
   - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
     id: 'deploy-app'
     entrypoint: gcloud
@@ -67,6 +76,7 @@ steps:
       - '--set-env-vars=ENERGYPLUS_EXEC=/usr/local/bin/energyplus'
     waitFor: ['push-app']
 
+  # ── 5. Deploy JOB (crear o actualizar) ────────────────────────────────────
   - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
     id: 'deploy-job'
     entrypoint: gcloud
@@ -79,8 +89,8 @@ steps:
       - '--region=us-central1'
       - '--memory=4Gi'
       - '--cpu=2'
-      - '--task-timeout=1500'
-      - '--max-retries=1'
+      - '--task-timeout=2400'
+      - '--max-retries=0'
       - '--parallelism=1'
     waitFor: ['push-job']
 
