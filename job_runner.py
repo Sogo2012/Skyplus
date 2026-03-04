@@ -562,6 +562,28 @@ def registrar_sheets(lead, config):
         logger.error(f"Error registrando en Sheets: {e}")
 
 
+def download_epw_from_gcs(gcs_uri):
+    """
+    Descarga el EPW desde GCS a /tmp/ local.
+    Retorna la ruta local del archivo.
+    """
+    from google.cloud import storage
+    import re
+    match = re.match(r"gs://([^/]+)/(.+)", gcs_uri)
+    if not match:
+        raise ValueError(f"URI GCS inválida: {gcs_uri}")
+    bucket_name = match.group(1)
+    blob_name   = match.group(2)
+    filename    = os.path.basename(blob_name)
+    local_path  = f"/tmp/{filename}"
+    client = storage.Client()
+    bucket = client.bucket(bucket_name)
+    blob   = bucket.blob(blob_name)
+    blob.download_to_filename(local_path)
+    logger.info(f"EPW descargado: {gcs_uri} → {local_path}")
+    return local_path
+
+
 # =============================================================================
 # MAIN — Entry point del Cloud Run Job
 # =============================================================================
@@ -582,6 +604,20 @@ if __name__ == "__main__":
         from motor.termico import calcular_curva_sfr, configurar_proyecto
     except ImportError as e:
         logger.error(f"No se pudo importar el motor: {e}")
+        sys.exit(1)
+
+    # Resolver EPW — descargar de GCS si es URI gs://
+    epw_path = config.get("epw_path", "")
+    if epw_path.startswith("gs://"):
+        logger.info(f"Descargando EPW desde GCS: {epw_path}")
+        try:
+            epw_path = download_epw_from_gcs(epw_path)
+            config["epw_path"] = epw_path
+        except Exception as e:
+            logger.error(f"No se pudo descargar EPW de GCS: {e}")
+            sys.exit(1)
+    elif not os.path.exists(epw_path):
+        logger.error(f"EPW no encontrado: {epw_path}")
         sys.exit(1)
 
     # 7 simulaciones
