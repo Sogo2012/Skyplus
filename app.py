@@ -39,6 +39,30 @@ def verificar_cuota(correo):
     except Exception:
         return 0, True
 
+GCS_BUCKET = "skyplus-epw-linen-rex"
+
+def upload_epw_to_gcs(local_path, correo):
+    """
+    Sube el EPW local a GCS y retorna la URI gs://.
+    Retorna None si falla — el job no se lanza.
+    """
+    try:
+        from google.cloud import storage
+        import hashlib, os
+        client   = storage.Client()
+        bucket   = client.bucket(GCS_BUCKET)
+        key      = hashlib.md5(correo.encode()).hexdigest()[:8]
+        filename = os.path.basename(local_path)
+        blob_name = f"epw/{key}/{filename}"
+        blob     = bucket.blob(blob_name)
+        blob.upload_from_filename(local_path)
+        gcs_uri  = f"gs://{GCS_BUCKET}/{blob_name}"
+        return gcs_uri
+    except Exception as e:
+        import logging
+        logging.error(f"Error subiendo EPW a GCS: {e}")
+        return None
+
 def lanzar_cloud_run_job(config, lead, sql_base=None):
     """
     Lanza skyplus-job via Cloud Run Jobs API.
@@ -1267,12 +1291,22 @@ with tab_analitica:
             clima = st.session_state.clima_data or {}
             md    = clima.get("metadata", {})
 
+            # Subir EPW a GCS para que el Job pueda accederlo
+            with st.spinner("Preparando análisis..."):
+                gcs_uri = upload_epw_to_gcs(
+                    st.session_state.epw_path,
+                    st.session_state.lead_correo,
+                )
+            if not gcs_uri:
+                st.error("No se pudo preparar el archivo climático. Intenta nuevamente.")
+                st.stop()
+
             _config_job = {
                 "ancho":        ancho_nave,
                 "largo":        largo_nave,
                 "altura":       alto_nave,
                 "tipo_uso":     tipo_uso,
-                "epw_path":     st.session_state.epw_path,
+                "epw_path":     gcs_uri,       # URI de GCS — no ruta local
                 "sfr_diseno":   sfr_target,
                 "domo_vlt":     float(datos_domo["VLT"]),
                 "domo_shgc":    float(datos_domo["SHGC"]),
