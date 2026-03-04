@@ -1,7 +1,5 @@
 # =============================================================================
-# SKYPLUS 1.0 — requirements.txt (Fase 1: Interfaz y Datos)
-# NOTA: Para replicar el éxito de Google Colab y evitar el loop infinito, 
-# el motor (Ladybug/Honeybee) se instala secuencialmente en el Dockerfile.
+# SKYPLUS 1.0 — requirements.txt
 # =============================================================================
 
 # --- Core ---
@@ -9,7 +7,7 @@ pydantic<2.0
 setuptools
 wheel
 
-# --- Streamlit y UI (Versiones estables) ---
+# --- Streamlit y UI ---
 streamlit==1.32.0
 streamlit-folium==0.18.0
 streamlit-vtkjs==0.3.2
@@ -24,3 +22,10 @@ requests==2.31.0
 geopy==2.4.1
 lxml==5.1.0
 beautifulsoup4==4.12.3
+
+# --- Google Cloud ---
+google-auth==2.29.0
+google-api-python-client==2.126.0
+
+# --- PDF ---
+reportlab==4.1.0
