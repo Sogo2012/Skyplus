@@ -16,7 +16,7 @@ steps:
       - '-f'
       - 'Dockerfile'
       - '.'
-    timeout: '1200s'
+    timeout: '1500s'
 
   # ── 2. Build imagen del JOB ────────────────────────────────────────────────
   - name: 'gcr.io/cloud-builders/docker'
