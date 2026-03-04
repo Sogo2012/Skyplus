@@ -92,6 +92,8 @@ steps:
       - '--task-timeout=2400'
       - '--max-retries=0'
       - '--parallelism=1'
+      - '--set-env-vars=GMAIL_USER=ingenieria@ecoconsultor.com,SHEETS_ID=1qUVoWPBGyTgbJ3EAxuNdQM10nuq1CIiUCPu6YsngFe4,ENERGYPLUS_EXEC=/usr/local/bin/energyplus'
+      - '--set-secrets=GMAIL_APP_PASSWORD=SKYPLUS_GMAIL_PASSWORD:latest'
     waitFor: ['push-job']
 
 images:
