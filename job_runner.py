@@ -245,35 +245,80 @@ def generar_grafica_curva(df_curva, sfr_opt, sfr_dual, tipo_uso, ancho, largo):
 
 
 # =============================================================================
-# GENERAR PDF
+# GENERAR PDF — Versión Premium con header persistente
 # =============================================================================
-def generar_pdf(config, resultado, lead):
-    buf    = io.BytesIO()
-    doc    = SimpleDocTemplate(
-        buf, pagesize=A4,
-        leftMargin=2*cm, rightMargin=2*cm,
-        topMargin=2*cm, bottomMargin=2*cm,
-        title="Reporte Técnico SkyPlus", author="ECO Consultor",
+
+MESES_ES = ["enero","febrero","marzo","abril","mayo","junio",
+            "julio","agosto","septiembre","octubre","noviembre","diciembre"]
+
+def fecha_es():
+    h = datetime.datetime.now()
+    return f"{h.day} de {MESES_ES[h.month-1]} de {h.year}"
+
+def _draw_header(canvas_obj, doc, eco_path, sun_path, seccion=""):
+    """Header ECO + Sunoptics que se dibuja en TODAS las páginas."""
+    from reportlab.lib.units import cm
+    W, H = A4
+    canvas_obj.saveState()
+
+    # Franja azul superior
+    canvas_obj.setFillColor(ECO_AZUL)
+    canvas_obj.rect(0, H - 2.2*cm, W, 2.2*cm, fill=1, stroke=0)
+
+    # Logo ECO grande (blanco sobre azul)
+    if os.path.exists(eco_path):
+        canvas_obj.drawImage(
+            eco_path, 0.6*cm, H - 2.0*cm,
+            width=4.5*cm, height=1.7*cm,
+            preserveAspectRatio=True, mask='auto',
+        )
+
+    # Logo Sunoptics derecha
+    if os.path.exists(sun_path):
+        canvas_obj.drawImage(
+            sun_path, W - 5.0*cm, H - 2.0*cm,
+            width=4.2*cm, height=1.6*cm,
+            preserveAspectRatio=True, mask='auto',
+        )
+
+    # Sección centrada en header
+    if seccion:
+        canvas_obj.setFillColor(white)
+        canvas_obj.setFont("Helvetica", 7.5)
+        canvas_obj.drawCentredString(W/2, H - 1.3*cm, seccion.upper())
+
+    # Línea verde bajo header
+    canvas_obj.setStrokeColor(ECO_VERDE)
+    canvas_obj.setLineWidth(2.5)
+    canvas_obj.line(0, H - 2.2*cm, W, H - 2.2*cm)
+
+    # Footer
+    canvas_obj.setFillColor(ECO_GRIS)
+    canvas_obj.setFont("Helvetica", 6.5)
+    canvas_obj.drawCentredString(
+        W/2, 0.6*cm,
+        "SkyPlus v22.2  ·  ECO Consultor  ·  EnergyPlus 23.2 (DOE)  ·  ISO 8995-1  ·  ANSI/IES RP-7-21"
     )
-    styles = getSampleStyleSheet()
+    canvas_obj.setStrokeColor(ECO_LINEA)
+    canvas_obj.setLineWidth(0.5)
+    canvas_obj.line(1.5*cm, 1.0*cm, W - 1.5*cm, 1.0*cm)
 
-    def s(nombre, parent='Normal', **kw):
-        return ParagraphStyle(nombre, parent=styles[parent], **kw)
+    # Número de página
+    canvas_obj.setFillColor(ECO_GRIS)
+    canvas_obj.setFont("Helvetica", 7)
+    canvas_obj.drawRightString(W - 1.5*cm, 0.6*cm, f"Página {doc.page}")
 
-    s_titulo    = s('T',  fontSize=22, textColor=ECO_AZUL,  spaceAfter=6,  fontName='Helvetica-Bold')
-    s_subtitulo = s('ST', fontSize=11, textColor=ECO_GRIS,  spaceAfter=12)
-    s_h1        = s('H1', fontSize=13, textColor=ECO_AZUL,  spaceBefore=14, spaceAfter=6,  fontName='Helvetica-Bold')
-    s_h2        = s('H2', fontSize=10, textColor=ECO_VERDE, spaceBefore=8,  spaceAfter=4,  fontName='Helvetica-Bold')
-    s_body      = s('B',  fontSize=9,  textColor=ECO_GRIS,  spaceAfter=4,  leading=14)
-    s_small     = s('SM', fontSize=7,  textColor=ECO_GRIS,  spaceAfter=2)
-    s_footer    = s('F',  fontSize=6.5,textColor=ECO_GRIS,  alignment=TA_CENTER)
-    s_disc      = s('D',  fontSize=7.5,textColor=ECO_GRIS,  leading=11, backColor=ECO_CLARO, borderPadding=6)
+    canvas_obj.restoreState()
 
-    story  = []
-    fecha  = datetime.datetime.now().strftime("%d de %B de %Y")
-    ancho  = config.get("ancho", 0)
-    largo  = config.get("largo", 0)
-    alto   = config.get("altura", 0)
+
+def generar_pdf(config, resultado, lead):
+    eco_path = "assets/eco_logo.png"
+    sun_path = "assets/sunoptics_logo.png"
+    fecha    = fecha_es()
+
+    ancho    = config.get("ancho", 0)
+    largo    = config.get("largo", 0)
+    alto     = config.get("altura", 0)
     tipo_uso = config.get("tipo_uso", "Warehouse")
     ciudad   = config.get("ciudad", "—")
     pais     = config.get("pais", "—")
@@ -281,6 +326,7 @@ def generar_pdf(config, resultado, lead):
     vlt      = config.get("domo_vlt", 0.67)
     shgc     = config.get("domo_shgc", 0.48)
     sfr_d    = config.get("sfr_diseno", 0.03)
+
     n_domos  = resultado.get("n_domos_diseno", 0)
     sfr_real = resultado.get("sfr_real_diseno", sfr_d)
     sfr_opt  = resultado.get("sfr_opt")
@@ -289,189 +335,422 @@ def generar_pdf(config, resultado, lead):
     neto_opt = resultado.get("neto_opt", 0)
     pct_opt  = resultado.get("pct_opt", 0)
     df_curva = resultado.get("df_curva_raw", [])
+    recomend = resultado.get("recomendacion", "")
 
-    # ── PORTADA ──────────────────────────────────────────────────────────────
-    eco_path = "assets/eco_logo.png"
-    sun_path = "assets/sunoptics_logo.png"
+    # Limpiar markdown del texto de recomendación
+    import re
+    recomend_limpio = re.sub(r'\*\*(.+?)\*\*', r'\1', recomend)
+    recomend_limpio = re.sub(r'\*(.+?)\*',   r'\1', recomend_limpio)
 
-    logo_eco = RLImage(eco_path, width=5*cm, height=2*cm, kind='proportional') \
-               if os.path.exists(eco_path) else Paragraph("<b>ECO Consultor</b>", s_h1)
-    logo_sun = RLImage(sun_path, width=5*cm, height=2*cm, kind='proportional') \
-               if os.path.exists(sun_path) else Paragraph("<b>Sunoptics®</b>", s_h1)
+    # Calcular ahorros reales del SFR óptimo dual
+    sfr_show  = sfr_dual or sfr_opt
+    neto_dual = 0
+    pct_dual  = 0
+    lux_dual  = 0
+    for r in df_curva:
+        if r.get("sfr_pct") == sfr_show:
+            neto_dual = r.get("neto_kwh", 0)
+            pct_dual  = r.get("pct_base", 0)
+            lux_dual  = r.get("fc_lux",  0)
+            break
 
-    t_logos = Table([[logo_eco, Spacer(1,1), logo_sun]], colWidths=[7*cm,'*',7*cm])
-    t_logos.setStyle(TableStyle([
-        ('ALIGN',     (0,0),(0,0),'LEFT'),
-        ('ALIGN',     (2,0),(2,0),'RIGHT'),
-        ('VALIGN',    (0,0),(-1,-1),'MIDDLE'),
-        ('LINEBELOW', (0,0),(-1,0),1.5,ECO_VERDE),
-        ('BOTTOMPADDING',(0,0),(-1,0),8),
+    buf = io.BytesIO()
+
+    # Márgenes con espacio para header (2.8cm top) y footer (1.5cm bottom)
+    doc = SimpleDocTemplate(
+        buf, pagesize=A4,
+        leftMargin=1.8*cm, rightMargin=1.8*cm,
+        topMargin=3.0*cm, bottomMargin=1.8*cm,
+        title="Reporte Técnico SkyPlus", author="ECO Consultor",
+    )
+
+    W, H = A4
+    styles = getSampleStyleSheet()
+
+    def s(nombre, parent='Normal', **kw):
+        return ParagraphStyle(nombre, parent=styles[parent], **kw)
+
+    s_titulo    = s('T',  fontSize=26, textColor=ECO_AZUL,  spaceAfter=10,  fontName='Helvetica-Bold', leading=32)
+    s_subtitulo = s('ST', fontSize=11, textColor=ECO_VERDE, spaceAfter=20, leading=18)
+    s_h1        = s('H1', fontSize=13, textColor=ECO_AZUL,  spaceBefore=14, spaceAfter=6,  fontName='Helvetica-Bold')
+    s_h2        = s('H2', fontSize=10, textColor=ECO_VERDE, spaceBefore=8,  spaceAfter=4,  fontName='Helvetica-Bold')
+    s_body      = s('B',  fontSize=9,  textColor=ECO_GRIS,  spaceAfter=4,  leading=14)
+    s_small     = s('SM', fontSize=7,  textColor=ECO_GRIS,  spaceAfter=2)
+    s_kpi_val   = s('KV', fontSize=18, textColor=ECO_VERDE, fontName='Helvetica-Bold', alignment=TA_CENTER, leading=22)
+    s_kpi_lbl   = s('KL', fontSize=7.5,textColor=ECO_GRIS,  alignment=TA_CENTER, leading=10)
+    s_kpi_sub   = s('KS', fontSize=8,  textColor=ECO_AZUL,  alignment=TA_CENTER, fontName='Helvetica-Bold')
+    s_cta_t     = s('CT', fontSize=11, textColor=white,     fontName='Helvetica-Bold', spaceAfter=4)
+    s_cta_b     = s('CB', fontSize=9,  textColor=white,     leading=13)
+    s_disc      = s('DC', fontSize=7.5,textColor=ECO_GRIS,  leading=11, backColor=ECO_CLARO, borderPadding=6)
+
+    secciones = [
+        "Portada",
+        "Modelo Geométrico",
+        "Análisis Energético",
+        "Confort Visual & Recomendación",
+    ]
+
+    story = []
+
+    # =========================================================================
+    # PÁG 1 — PORTADA PREMIUM
+    # =========================================================================
+    # Banda azul de título
+    story.append(Spacer(1, 0.3*cm))
+    story.append(Paragraph("Reporte Técnico", s_titulo))
+    story.append(Paragraph("SkyPlus® — Optimización de Iluminación Natural con Domos Sunoptics®", s_subtitulo))
+    story.append(HRFlowable(width="100%", thickness=2, color=ECO_VERDE, spaceAfter=14))
+
+    # Tarjetas KPI de portada
+    sfr_show_str = f"SFR {sfr_show}%" if sfr_show else "—"
+    kpi_data = [[
+        Paragraph(f"{pct_opt:.1f}%",       s_kpi_val),
+        Paragraph(f"{neto_opt:,.0f}",       s_kpi_val),
+        Paragraph(sfr_show_str,             s_kpi_val),
+        Paragraph(f"{lux_dual:.0f}" if lux_dual else "—", s_kpi_val),
+    ],[
+        Paragraph("Ahorro energético\nmáximo", s_kpi_lbl),
+        Paragraph("kWh ahorrados\npor año",    s_kpi_lbl),
+        Paragraph("SFR recomendado\n(Óptimo Dual)", s_kpi_lbl),
+        Paragraph("Iluminancia\npromedio (lux)", s_kpi_lbl),
+    ]]
+    col_w = (W - 3.6*cm) / 4
+    t_kpi_cover = Table(kpi_data, colWidths=[col_w]*4)
+    t_kpi_cover.setStyle(TableStyle([
+        ('BACKGROUND',    (0,0),(-1,-1), ECO_CLARO),
+        ('BACKGROUND',    (0,0),(0,-1),  HexColor("#E8F5E1")),
+        ('TOPPADDING',    (0,0),(-1,-1), 10),
+        ('BOTTOMPADDING', (0,0),(-1,-1), 10),
+        ('LINEAFTER',     (0,0),(2,-1),  0.5, ECO_LINEA),
+        ('BOX',           (0,0),(-1,-1), 1, ECO_VERDE),
+        ('ROUNDEDCORNERS',(0,0),(-1,-1), [4,4,4,4]),
     ]))
-    story += [t_logos, Spacer(1,1.5*cm),
-              Paragraph("Reporte Técnico SkyPlus", s_titulo),
-              Paragraph("Análisis de Optimización de Iluminación Natural con Domos Sunoptics®", s_subtitulo),
-              HRFlowable(width="100%", thickness=1, color=ECO_LINEA, spaceAfter=12)]
+    story.append(t_kpi_cover)
+    story.append(Spacer(1, 0.6*cm))
 
-    t_cliente = Table([
-        ["Cliente",  lead.get("nombre",  "—")],
-        ["Empresa",  lead.get("empresa", "—")],
-        ["Correo",   lead.get("correo",  "—")],
-        ["Fecha",    fecha],
-    ], colWidths=[4*cm, 13*cm])
-    t_cliente.setStyle(TableStyle([
-        ('FONTNAME',  (0,0),(0,-1),'Helvetica-Bold'),
-        ('FONTSIZE',  (0,0),(-1,-1),9),
-        ('TEXTCOLOR', (0,0),(0,-1),ECO_AZUL),
-        ('TEXTCOLOR', (1,0),(1,-1),ECO_GRIS),
-        ('TOPPADDING',   (0,0),(-1,-1),4),
-        ('BOTTOMPADDING',(0,0),(-1,-1),4),
-        ('LINEBELOW', (0,-1),(-1,-1),0.5,ECO_LINEA),
+    # Datos del cliente + proyecto en dos columnas
+    col_cliente = [
+        [Paragraph("<b>CLIENTE</b>",  s('lbl', fontSize=7, textColor=ECO_VERDE, fontName='Helvetica-Bold')), ""],
+        [Paragraph("Nombre",   s('fl', fontSize=8, textColor=ECO_GRIS,  fontName='Helvetica-Bold')),
+         Paragraph(lead.get("nombre","—"),  s('fv', fontSize=9, textColor=ECO_AZUL))],
+        [Paragraph("Empresa",  s('fl2',fontSize=8, textColor=ECO_GRIS,  fontName='Helvetica-Bold')),
+         Paragraph(lead.get("empresa","—"), s('fv2',fontSize=9, textColor=ECO_AZUL))],
+        [Paragraph("Correo",   s('fl3',fontSize=8, textColor=ECO_GRIS,  fontName='Helvetica-Bold')),
+         Paragraph(lead.get("correo","—"),  s('fv3',fontSize=8, textColor=ECO_GRIS))],
+        [Paragraph("Fecha",    s('fl4',fontSize=8, textColor=ECO_GRIS,  fontName='Helvetica-Bold')),
+         Paragraph(fecha,                   s('fv4',fontSize=9, textColor=ECO_AZUL))],
+    ]
+    col_proyecto = [
+        [Paragraph("<b>PROYECTO</b>", s('lbl2', fontSize=7, textColor=ECO_VERDE, fontName='Helvetica-Bold')), ""],
+        [Paragraph("Nave",     s('pl', fontSize=8, textColor=ECO_GRIS,  fontName='Helvetica-Bold')),
+         Paragraph(f"{ancho:.0f}×{largo:.0f}×{alto:.0f} m  ({ancho*largo:,.0f} m²)", s('pv', fontSize=9, textColor=ECO_AZUL))],
+        [Paragraph("Uso",      s('pl2',fontSize=8, textColor=ECO_GRIS,  fontName='Helvetica-Bold')),
+         Paragraph(tipo_uso,   s('pv2',fontSize=9, textColor=ECO_AZUL))],
+        [Paragraph("Clima",    s('pl3',fontSize=8, textColor=ECO_GRIS,  fontName='Helvetica-Bold')),
+         Paragraph(f"{ciudad}, {pais}", s('pv3',fontSize=8, textColor=ECO_GRIS))],
+        [Paragraph("Motor",    s('pl4',fontSize=8, textColor=ECO_GRIS,  fontName='Helvetica-Bold')),
+         Paragraph("EnergyPlus 23.2 (DOE)", s('pv4',fontSize=8, textColor=ECO_GRIS))],
+    ]
+
+    t_cl = Table(col_cliente, colWidths=[2.5*cm, 6*cm])
+    t_cl.setStyle(TableStyle([
+        ('SPAN',         (0,0),(-1,0)),
+        ('BACKGROUND',   (0,0),(-1,0), ECO_AZUL),
+        ('TEXTCOLOR',    (0,0),(-1,0), white),
+        ('TOPPADDING',   (0,0),(-1,-1), 5),
+        ('BOTTOMPADDING',(0,0),(-1,-1), 5),
+        ('LEFTPADDING',  (0,0),(-1,-1), 8),
+        ('ROWBACKGROUNDS',(0,1),(-1,-1),[white, ECO_CLARO]),
+        ('BOX',          (0,0),(-1,-1), 0.5, ECO_LINEA),
     ]))
-    story += [t_cliente, Spacer(1,0.8*cm), Paragraph("Especificaciones del Proyecto", s_h1)]
 
-    t_proyecto = Table([
-        ["Geometría",  f"{ancho:.0f} × {largo:.0f} × {alto:.0f} m  ({ancho*largo:,.0f} m²)"],
-        ["Tipo de uso", tipo_uso],
-        ["Ubicación",  f"{ciudad}, {pais}"],
-        ["Domo",       modelo],
-        ["VLT / SHGC", f"{vlt:.0%} / {shgc:.2f}"],
-        ["SFR diseño", f"{sfr_d*100:.0f}%  ({n_domos} domos)"],
-        ["Motor",      "EnergyPlus 23.2 (DOE)"],
-        ["Normativa",  "ISO 8995-1:2002 · ANSI/IES RP-7-21 · UDI Mardaljevic 2006"],
-    ], colWidths=[4*cm, 13*cm])
-    t_proyecto.setStyle(TableStyle([
-        ('FONTNAME',       (0,0),(0,-1),'Helvetica-Bold'),
-        ('FONTSIZE',       (0,0),(-1,-1),9),
-        ('TEXTCOLOR',      (0,0),(0,-1),ECO_AZUL),
-        ('TEXTCOLOR',      (1,0),(1,-1),ECO_GRIS),
-        ('ROWBACKGROUNDS', (0,0),(-1,-1),[ECO_CLARO, white]),
-        ('TOPPADDING',     (0,0),(-1,-1),4),
-        ('BOTTOMPADDING',  (0,0),(-1,-1),4),
-        ('LEFTPADDING',    (0,0),(-1,-1),6),
+    t_pr = Table(col_proyecto, colWidths=[2.0*cm, 6.5*cm])
+    t_pr.setStyle(TableStyle([
+        ('SPAN',         (0,0),(-1,0)),
+        ('BACKGROUND',   (0,0),(-1,0), ECO_VERDE),
+        ('TEXTCOLOR',    (0,0),(-1,0), white),
+        ('TOPPADDING',   (0,0),(-1,-1), 5),
+        ('BOTTOMPADDING',(0,0),(-1,-1), 5),
+        ('LEFTPADDING',  (0,0),(-1,-1), 8),
+        ('ROWBACKGROUNDS',(0,1),(-1,-1),[white, ECO_CLARO]),
+        ('BOX',          (0,0),(-1,-1), 0.5, ECO_LINEA),
     ]))
-    story.append(t_proyecto)
 
-    comentario = lead.get("comentario", "").strip()
+    t_info = Table([[t_cl, Spacer(0.4*cm, 1), t_pr]], colWidths=[8.5*cm, 0.4*cm, 8.5*cm])
+    t_info.setStyle(TableStyle([('VALIGN',(0,0),(-1,-1),'TOP')]))
+    story.append(t_info)
+
+    # Domo specs
+    story.append(Spacer(1, 0.5*cm))
+    story.append(Paragraph("Domo Sunoptics® Especificado", s_h2))
+    t_domo = Table([
+        ["Modelo", modelo, "VLT", f"{vlt:.0%}", "SHGC", f"{shgc:.2f}",
+         "SFR diseño", f"{sfr_d*100:.0f}%  ({n_domos} domos)"],
+    ], colWidths=[2*cm, 4*cm, 1.2*cm, 1.5*cm, 1.5*cm, 1.5*cm, 2.5*cm, 3.3*cm])
+    t_domo.setStyle(TableStyle([
+        ('FONTNAME',       (0,0),(0,-1), 'Helvetica-Bold'),
+        ('FONTNAME',       (2,0),(2,-1), 'Helvetica-Bold'),
+        ('FONTNAME',       (4,0),(4,-1), 'Helvetica-Bold'),
+        ('FONTNAME',       (6,0),(6,-1), 'Helvetica-Bold'),
+        ('FONTSIZE',       (0,0),(-1,-1), 8),
+        ('TEXTCOLOR',      (0,0),(0,-1),  ECO_AZUL),
+        ('TEXTCOLOR',      (2,0),(2,-1),  ECO_AZUL),
+        ('TEXTCOLOR',      (4,0),(4,-1),  ECO_AZUL),
+        ('TEXTCOLOR',      (6,0),(6,-1),  ECO_AZUL),
+        ('BACKGROUND',     (0,0),(-1,-1), ECO_CLARO),
+        ('TOPPADDING',     (0,0),(-1,-1), 6),
+        ('BOTTOMPADDING',  (0,0),(-1,-1), 6),
+        ('LEFTPADDING',    (0,0),(-1,-1), 6),
+        ('BOX',            (0,0),(-1,-1), 0.5, ECO_LINEA),
+    ]))
+    story.append(t_domo)
+
+    # Comentarios
+    comentario = lead.get("comentario","").strip()
     if comentario:
-        story += [Spacer(1,0.5*cm), Paragraph("Comentarios del cliente", s_h2),
+        story += [Spacer(1,0.4*cm), Paragraph("Notas del Cliente", s_h2),
                   Paragraph(comentario, s_body)]
+
+    # Normativa
+    story.append(Spacer(1, 0.5*cm))
+    story.append(Paragraph(
+        "<b>Normativa aplicada:</b>  ISO 8995-1:2002 (CIE S 008)  ·  ANSI/IES RP-7-21  ·  "
+        "UDI Mardaljevic 2006  ·  ASHRAE 90.1-2022  ·  EnergyPlus 23.2 DOE",
+        s('norm', fontSize=7.5, textColor=ECO_GRIS, backColor=ECO_CLARO,
+          borderPadding=5, leading=11)
+    ))
     story.append(PageBreak())
 
-    # ── GEOMETRÍA ─────────────────────────────────────────────────────────────
-    story += [Paragraph("Modelo Geométrico de la Nave", s_h1),
-              Paragraph(f"Vista isométrica con {n_domos} domos Sunoptics® — SFR real: {sfr_real*100:.1f}%.", s_body),
-              Spacer(1,0.3*cm)]
+    # =========================================================================
+    # PÁG 2 — GEOMETRÍA
+    # =========================================================================
+    story.append(Paragraph("Modelo Geométrico de la Nave", s_h1))
+    story.append(Paragraph(
+        f"Distribución matricial de <b>{n_domos} domos Sunoptics®</b> sobre una nave de "
+        f"<b>{ancho:.0f}×{largo:.0f}×{alto:.0f} m</b> ({ancho*largo:,.0f} m²). "
+        f"Superficie de Fenestración en Techo (SFR) real: <b>{sfr_real*100:.1f}%</b>.",
+        s_body,
+    ))
+    story.append(Spacer(1, 0.3*cm))
     try:
         iso = generar_isometrico(ancho, largo, alto, n_domos, sfr_real,
                                  config.get("domo_ancho_m", 1.328),
                                  config.get("domo_largo_m", 2.547))
-        story.append(RLImage(io.BytesIO(iso), width=16*cm, height=9*cm, kind='proportional'))
+        story.append(RLImage(io.BytesIO(iso), width=15*cm, height=10*cm, kind='proportional'))
     except Exception as e:
         story.append(Paragraph(f"[Vista isométrica no disponible: {e}]", s_small))
+
+    # Tabla técnica domo
+    story.append(Spacer(1, 0.5*cm))
+    story.append(Paragraph("Ficha Técnica del Domo", s_h2))
+    t_ficha = Table([
+        ["Parámetro", "Valor", "Descripción"],
+        ["Modelo",      modelo,           "Referencia Sunoptics®"],
+        ["VLT",         f"{vlt:.0%}",     "Transmitancia luminosa visible (NFRC 200)"],
+        ["SHGC",        f"{shgc:.2f}",    "Solar Heat Gain Coefficient (NFRC 200)"],
+        ["SFR diseño",  f"{sfr_d*100:.0f}%", "Área domos / Área techo"],
+        ["Domos",       str(n_domos),     "Unidades instaladas en cuadrícula simétrica"],
+        ["Normativa",   "ISO 8995-1",     "Setpoint iluminación según tipo de uso"],
+    ], colWidths=[3.5*cm, 3.5*cm, 10.5*cm])
+    t_ficha.setStyle(TableStyle([
+        ('FONTNAME',       (0,0),(-1,0), 'Helvetica-Bold'),
+        ('FONTSIZE',       (0,0),(-1,-1), 8.5),
+        ('TEXTCOLOR',      (0,0),(-1,0), white),
+        ('BACKGROUND',     (0,0),(-1,0), ECO_AZUL),
+        ('ROWBACKGROUNDS', (0,1),(-1,-1), [white, ECO_CLARO]),
+        ('ALIGN',          (0,0),(-1,-1), 'LEFT'),
+        ('TOPPADDING',     (0,0),(-1,-1), 5),
+        ('BOTTOMPADDING',  (0,0),(-1,-1), 5),
+        ('LEFTPADDING',    (0,0),(-1,-1), 8),
+        ('GRID',           (0,0),(-1,-1), 0.3, ECO_LINEA),
+    ]))
+    story.append(t_ficha)
     story.append(PageBreak())
 
-    # ── RESULTADOS ENERGÉTICOS ────────────────────────────────────────────────
-    story += [Paragraph("Análisis Energético — Curva de Optimización SFR", s_h1)]
+    # =========================================================================
+    # PÁG 3 — ANÁLISIS ENERGÉTICO
+    # =========================================================================
+    story.append(Paragraph("Análisis Energético — Curva de Optimización SFR", s_h1))
+    story.append(Paragraph(
+        f"Se corrieron <b>7 simulaciones EnergyPlus 23.2</b> variando el SFR de 0% a 6% "
+        f"para la nave de {ancho:.0f}×{largo:.0f} m en <b>{ciudad}, {pais}</b>. "
+        "El modelo evalúa simultáneamente el ahorro en iluminación artificial y la "
+        "penalización por carga térmica solar.",
+        s_body,
+    ))
+    story.append(Spacer(1, 0.3*cm))
 
-    t_kpis = Table([
-        ["SFR Óptimo Energético", f"{sfr_opt}%",           "Máximo ahorro neto anual"],
-        ["Ahorro máximo",         f"{pct_opt:.1f}%",       f"{neto_opt:,.0f} kWh/año"],
-        ["SFR Óptimo Dual",       f"{sfr_dual}%" if sfr_dual else "—", "Confort + energía"],
-        ["Consumo base",          f"{kwh_base:,.0f} kWh/año", "SFR=0% sin domos"],
-    ], colWidths=[5*cm, 4*cm, 8*cm])
+    # 4 KPI cards
+    kpi_rows = [[
+        Paragraph(f"{sfr_opt}%",                s_kpi_val),
+        Paragraph(f"{pct_opt:.1f}%",            s_kpi_val),
+        Paragraph(f"{neto_opt:,.0f}",           s_kpi_val),
+        Paragraph(f"{kwh_base:,.0f}",           s_kpi_val),
+    ],[
+        Paragraph("SFR Óptimo\nEnergético",     s_kpi_lbl),
+        Paragraph("Ahorro\nmáximo",             s_kpi_lbl),
+        Paragraph("kWh/año\nahorrados",         s_kpi_lbl),
+        Paragraph("kWh/año\nconsumo base",      s_kpi_lbl),
+    ]]
+    t_kpis = Table(kpi_rows, colWidths=[col_w]*4)
     t_kpis.setStyle(TableStyle([
-        ('FONTNAME',       (0,0),(0,-1),'Helvetica-Bold'),
-        ('FONTNAME',       (1,0),(1,-1),'Helvetica-Bold'),
-        ('FONTSIZE',       (0,0),(-1,-1),9),
-        ('TEXTCOLOR',      (0,0),(0,-1),ECO_AZUL),
-        ('TEXTCOLOR',      (1,0),(1,-1),ECO_VERDE),
-        ('TEXTCOLOR',      (2,0),(2,-1),ECO_GRIS),
-        ('ROWBACKGROUNDS', (0,0),(-1,-1),[ECO_CLARO, white]),
-        ('TOPPADDING',     (0,0),(-1,-1),5),
-        ('BOTTOMPADDING',  (0,0),(-1,-1),5),
-        ('LEFTPADDING',    (0,0),(-1,-1),6),
+        ('BACKGROUND',    (0,0),(0,-1),  HexColor("#E8F5E1")),
+        ('BACKGROUND',    (1,0),(-1,-1), ECO_CLARO),
+        ('TOPPADDING',    (0,0),(-1,-1), 8),
+        ('BOTTOMPADDING', (0,0),(-1,-1), 8),
+        ('LINEAFTER',     (0,0),(2,-1),  0.5, ECO_LINEA),
+        ('BOX',           (0,0),(-1,-1), 1, ECO_VERDE),
     ]))
-    story += [t_kpis, Spacer(1,0.4*cm)]
+    story.append(t_kpis)
+    story.append(Spacer(1, 0.4*cm))
 
+    # Gráfica
     try:
         curva = generar_grafica_curva(df_curva, sfr_opt, sfr_dual, tipo_uso, ancho, largo)
-        story.append(RLImage(io.BytesIO(curva), width=16*cm, height=8*cm, kind='proportional'))
+        story.append(RLImage(io.BytesIO(curva), width=15.5*cm, height=8*cm, kind='proportional'))
     except Exception as e:
         story.append(Paragraph(f"[Gráfica no disponible: {e}]", s_small))
 
-    story += [Spacer(1,0.3*cm), Paragraph("Tabla de Resultados por SFR", s_h2)]
+    story.append(Spacer(1, 0.3*cm))
+    story.append(Paragraph("Tabla de Resultados por SFR", s_h2))
 
     sem_map = {
-        "Subiluminado (<150 lux)":      "Subiluminado",
-        "Confort óptimo (ISO+IES)":      "Confort óptimo",
-        "Límite UDI-Autonomous":         "Límite UDI",
-        "Sobreiluminación UDI-Exceeded": "Sobreiluminación",
+        "Subiluminado (<150 lux)":      "⚫ Subiluminado",
+        "Confort óptimo (ISO+IES)":      "🟢 Confort óptimo",
+        "Límite UDI-Autonomous":         "🟡 Límite UDI",
+        "Sobreiluminación UDI-Exceeded": "🔴 Sobreiluminación",
     }
-    filas_t = [["SFR","Domos","Ah.Luz kWh","Pen.Cool kWh","Neto kWh","% Base","fc lux","Semáforo"]]
+    filas_t = [["SFR", "Domos", "Ah. Ilum.\nkWh/año", "Pen. Cool\nkWh/año",
+                "Neto\nkWh/año", "% Base", "Ilum.\nlux", "Semáforo\nNormativo"]]
     for r in df_curva:
+        es_opt  = "★ " if r.get("sfr_pct") == sfr_opt  else ""
+        es_dual = "◆ " if r.get("sfr_pct") == sfr_dual and sfr_dual != sfr_opt else ""
         filas_t.append([
-            f"{r['sfr_pct']}%", str(r.get("n_domos","—")),
-            f"{r.get('ah_luz',0):,.0f}", f"{r.get('pen_cool',0):,.0f}",
-            f"{r.get('neto_kwh',0):,.0f}", f"{r.get('pct_base',0):.1f}%",
-            f"{r.get('fc_lux',0):.0f}", sem_map.get(r.get("semaforo",""), r.get("semaforo","—")),
+            f"{es_opt}{es_dual}{r['sfr_pct']}%",
+            str(r.get("n_domos","—")),
+            f"{r.get('ah_luz',0):,.0f}",
+            f"{r.get('pen_cool',0):,.0f}",
+            f"{r.get('neto_kwh',0):,.0f}",
+            f"{r.get('pct_base',0):.1f}%",
+            f"{r.get('fc_lux',0):.0f}",
+            sem_map.get(r.get("semaforo",""), r.get("semaforo","—")),
         ])
-    t_res = Table(filas_t, colWidths=[1.5*cm,1.5*cm,2.8*cm,2.8*cm,2.5*cm,1.8*cm,1.8*cm,3.3*cm])
+
+    t_res = Table(filas_t, colWidths=[1.6*cm, 1.4*cm, 2.5*cm, 2.5*cm, 2.5*cm, 1.6*cm, 1.6*cm, 4.3*cm])
     t_res.setStyle(TableStyle([
-        ('FONTNAME',       (0,0),(-1,0),'Helvetica-Bold'),
-        ('FONTSIZE',       (0,0),(-1,-1),7.5),
-        ('TEXTCOLOR',      (0,0),(-1,0),white),
-        ('BACKGROUND',     (0,0),(-1,0),ECO_AZUL),
-        ('ROWBACKGROUNDS', (0,1),(-1,-1),[ECO_CLARO, white]),
-        ('ALIGN',          (0,0),(-1,-1),'CENTER'),
-        ('TOPPADDING',     (0,0),(-1,-1),3),
-        ('BOTTOMPADDING',  (0,0),(-1,-1),3),
-        ('GRID',           (0,0),(-1,-1),0.3,ECO_LINEA),
+        ('FONTNAME',       (0,0),(-1,0),  'Helvetica-Bold'),
+        ('FONTSIZE',       (0,0),(-1,-1),  7.5),
+        ('TEXTCOLOR',      (0,0),(-1,0),   white),
+        ('BACKGROUND',     (0,0),(-1,0),   ECO_AZUL),
+        ('ROWBACKGROUNDS', (0,1),(-1,-1),  [white, ECO_CLARO]),
+        ('ALIGN',          (0,0),(-1,-1),  'CENTER'),
+        ('VALIGN',         (0,0),(-1,-1),  'MIDDLE'),
+        ('TOPPADDING',     (0,0),(-1,-1),  4),
+        ('BOTTOMPADDING',  (0,0),(-1,-1),  4),
+        ('GRID',           (0,0),(-1,-1),  0.3, ECO_LINEA),
     ]))
     story += [t_res, PageBreak()]
 
-    # ── CONFORT VISUAL + RECOMENDACIÓN ────────────────────────────────────────
-    story += [Paragraph("Confort Visual — Disponibilidad de Luz Natural", s_h1),
-              Paragraph(f"Iluminancia promedio interior (SFR={sfr_dual or sfr_opt}%).", s_body),
-              Spacer(1,0.3*cm)]
+    # =========================================================================
+    # PÁG 4 — CONFORT VISUAL + RECOMENDACIÓN
+    # =========================================================================
+    story.append(Paragraph("Confort Visual — Disponibilidad de Luz Natural", s_h1))
+    story.append(Paragraph(
+        f"Mapa horario de iluminancia interior promedio para <b>SFR={sfr_show}%</b>. "
+        "Las zonas rojas indican períodos donde la luz natural supera el setpoint normativo, "
+        "eliminando totalmente la necesidad de iluminación artificial.",
+        s_body,
+    ))
+    story.append(Spacer(1, 0.3*cm))
 
-    epw_path = config.get("epw_path","")
-    if epw_path and os.path.exists(epw_path):
+    epw_path_local = config.get("epw_path","")
+    if epw_path_local and os.path.exists(epw_path_local):
         try:
-            hm = generar_heatmap_luxes(epw_path, sfr_dual or sfr_opt, vlt, tipo_uso)
-            story.append(RLImage(io.BytesIO(hm), width=16*cm, height=7*cm, kind='proportional'))
+            hm = generar_heatmap_luxes(epw_path_local, sfr_show, vlt, tipo_uso)
+            story.append(RLImage(io.BytesIO(hm), width=15.5*cm, height=7*cm, kind='proportional'))
         except Exception as e:
             story.append(Paragraph(f"[Heatmap no disponible: {e}]", s_small))
 
-    story += [Spacer(1,0.5*cm), Paragraph("Recomendación de Diseño SkyPlus", s_h1),
-              Paragraph(resultado.get("recomendacion",""), s_body), Spacer(1,0.5*cm)]
+    story.append(Spacer(1, 0.5*cm))
+    story.append(Paragraph("Recomendación de Diseño SkyPlus®", s_h1))
+    story.append(Paragraph(recomend_limpio, s_body))
+    story.append(Spacer(1, 0.4*cm))
 
-    t_cta = Table([[
-        Paragraph("<b>Estudio BEM Premium</b><br/>Simulación Radiance · LEED v4.1 · EDGE.",
-                  s('C1', fontSize=9, textColor=ECO_AZUL)),
-        Paragraph("<b>Proyecto Ejecutivo</b><br/>Layout · Especificaciones · ROI.",
-                  s('C2', fontSize=9, textColor=ECO_VERDE)),
-    ]], colWidths=[8.5*cm, 8.5*cm])
-    t_cta.setStyle(TableStyle([
-        ('BOX', (0,0),(0,0),1,ECO_AZUL), ('BOX', (1,0),(1,0),1,ECO_VERDE),
-        ('TOPPADDING',(0,0),(-1,-1),8), ('BOTTOMPADDING',(0,0),(-1,-1),8),
-        ('LEFTPADDING',(0,0),(-1,-1),10),
+    # Semáforo visual
+    sem_txt = resultado.get("semaforo_dual", resultado.get("semaforo_opt","Confort óptimo"))
+    sem_color_hex = "#2ecc71"
+    if "Sobreiluminación" in sem_txt: sem_color_hex = "#e74c3c"
+    elif "Límite" in sem_txt:         sem_color_hex = "#f39c12"
+    elif "Subiluminado" in sem_txt:   sem_color_hex = "#3498db"
+
+    t_sem = Table([[
+        Paragraph(
+            f"<b>Estado normativo SFR={sfr_show}%:</b>  {sem_txt}",
+            s('sem', fontSize=10, textColor=HexColor(sem_color_hex), fontName='Helvetica-Bold')
+        )
+    ]], colWidths=[W - 3.6*cm])
+    t_sem.setStyle(TableStyle([
+        ('BOX',           (0,0),(-1,-1), 2, HexColor(sem_color_hex)),
+        ('BACKGROUND',    (0,0),(-1,-1), HexColor("#f8f9fa")),
+        ('TOPPADDING',    (0,0),(-1,-1), 10),
+        ('BOTTOMPADDING', (0,0),(-1,-1), 10),
+        ('LEFTPADDING',   (0,0),(-1,-1), 12),
     ]))
-    story += [t_cta, Spacer(1,0.8*cm),
-              HRFlowable(width="100%", thickness=0.5, color=ECO_LINEA),
-              Paragraph(
-                  f"SkyPlus v22.2 · ECO Consultor · {fecha} · "
-                  "EnergyPlus 23.2 (DOE) · ISO 8995-1 · ANSI/IES RP-7-21",
-                  s_footer,
-              )]
+    story.append(t_sem)
+    story.append(Spacer(1, 0.5*cm))
 
-    doc.build(story)
+    # CTA Ventas Premium
+    t_cta = Table([[
+        Paragraph(
+            "<b>Estudio BEM Premium</b><br/><br/>"
+            "Simulación espacial con Radiance.<br/>"
+            "Validación punto por punto, certificación<br/>"
+            "LEED v4.1, EDGE y BREEAM.<br/>"
+            "Mapas de iluminancia y deslumbramiento.",
+            s('C1', fontSize=9, textColor=white, leading=14)
+        ),
+        Paragraph(
+            "<b>Proyecto Ejecutivo</b><br/><br/>"
+            "Layout optimizado de domos.<br/>"
+            "Especificaciones técnicas completas.<br/>"
+            "Análisis de ROI y período de retorno.<br/>"
+            "Presupuesto de instalación Sunoptics®.",
+            s('C2', fontSize=9, textColor=white, leading=14)
+        ),
+    ]], colWidths=[(W-3.6*cm)/2]*2)
+    t_cta.setStyle(TableStyle([
+        ('BACKGROUND',    (0,0),(0,-1), ECO_AZUL),
+        ('BACKGROUND',    (1,0),(1,-1), ECO_VERDE),
+        ('TOPPADDING',    (0,0),(-1,-1), 14),
+        ('BOTTOMPADDING', (0,0),(-1,-1), 14),
+        ('LEFTPADDING',   (0,0),(-1,-1), 14),
+        ('RIGHTPADDING',  (0,0),(-1,-1), 14),
+    ]))
+    story.append(t_cta)
+
+    story.append(Spacer(1, 0.5*cm))
+    story.append(Paragraph(
+        "Para mayor información contáctenos en <b>ingenieria@ecoconsultor.com</b>  ·  "
+        "Los resultados de este reporte fueron generados con EnergyPlus 23.2 (DOE). "
+        "Para certificaciones LEED, EDGE o validación espacial detallada, "
+        "se requiere un estudio BEM completo con simulación Radiance.",
+        s_disc,
+    ))
+
+    # Build con header en todas las páginas
+    eco_path_ref = eco_path
+    sun_path_ref = sun_path
+
+    def _on_page(canvas_obj, doc_obj):
+        pg = doc_obj.page
+        sec = secciones[min(pg-1, len(secciones)-1)]
+        _draw_header(canvas_obj, doc_obj, eco_path_ref, sun_path_ref, sec)
+
+    doc.build(story, onFirstPage=_on_page, onLaterPages=_on_page)
     buf.seek(0)
     return buf.read()
 
 
-# =============================================================================
-# ENVIAR CORREO
-# =============================================================================
 def enviar_correo(destinatario, nombre, pdf_bytes, config):
     if not GMAIL_PASSWORD:
         logger.error("GMAIL_APP_PASSWORD no configurada.")
@@ -619,6 +898,16 @@ if __name__ == "__main__":
     elif not os.path.exists(epw_path):
         logger.error(f"EPW no encontrado: {epw_path}")
         sys.exit(1)
+
+    # Resolver sql_base — descargar de GCS si es URI gs://
+    sql_base = payload.get("sql_base_existente")
+    if sql_base and str(sql_base).startswith("gs://"):
+        logger.info(f"Descargando sql_base desde GCS: {sql_base}")
+        try:
+            sql_base = download_epw_from_gcs(sql_base)
+        except Exception as e:
+            logger.warning(f"No se pudo descargar sql_base — se re-simulará SFR=0: {e}")
+            sql_base = None
 
     # 7 simulaciones
     logger.info("Iniciando 7 simulaciones EnergyPlus...")
