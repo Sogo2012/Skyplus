@@ -659,8 +659,8 @@ with st.sidebar:
     st.markdown('<div class="eco-sidebar-section">02 — Geometría de la Nave</div>',
                 unsafe_allow_html=True)
 
-    ancho_nave = st.number_input("Ancho (m)",  min_value=10.0, max_value=100.0, value=50.0,  step=1.0)
-    largo_nave = st.number_input("Largo (m)",  min_value=10.0, max_value=100.0, value=100.0, step=1.0)
+    ancho_nave = st.number_input("Ancho (m)",  min_value=10.0, max_value=140.0, value=50.0,  step=1.0)
+    largo_nave = st.number_input("Largo (m)",  min_value=10.0, max_value=140.0, value=100.0, step=1.0)
     alto_nave  = st.number_input("Altura (m)", min_value=3.0,  max_value=30.0,  value=8.0,   step=0.5)
 
     area_nave = ancho_nave * largo_nave
