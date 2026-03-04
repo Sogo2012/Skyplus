@@ -1,0 +1,103 @@
+# cloudbuild.yaml
+# Google Cloud Build — pipeline CI/CD SkyPlus
+# Builds: (1) Servicio Streamlit  (2) Cloud Run Job para 7 sims + PDF + correo
+# =============================================================================
+
+steps:
+  # ── 1. Build imagen del SERVICIO Streamlit ─────────────────────────────────
+  - name: 'gcr.io/cloud-builders/docker'
+    id: 'build-app'
+    args:
+      - 'build'
+      - '-t'
+      - 'us-central1-docker.pkg.dev/$PROJECT_ID/skyplus/app:$COMMIT_SHA'
+      - '-t'
+      - 'us-central1-docker.pkg.dev/$PROJECT_ID/skyplus/app:latest'
+      - '-f'
+      - 'Dockerfile'
+      - '.'
+    timeout: '1200s'
+
+  # ── 2. Build imagen del JOB ────────────────────────────────────────────────
+  - name: 'gcr.io/cloud-builders/docker'
+    id: 'build-job'
+    args:
+      - 'build'
+      - '-t'
+      - 'us-central1-docker.pkg.dev/$PROJECT_ID/skyplus/job:$COMMIT_SHA'
+      - '-t'
+      - 'us-central1-docker.pkg.dev/$PROJECT_ID/skyplus/job:latest'
+      - '-f'
+      - 'Dockerfile.job'
+      - '.'
+    timeout: '1200s'
+    waitFor: ['build-app']
+
+  # ── 3. Push imágenes ───────────────────────────────────────────────────────
+  - name: 'gcr.io/cloud-builders/docker'
+    id: 'push-app'
+    args: ['push', 'us-central1-docker.pkg.dev/$PROJECT_ID/skyplus/app:$COMMIT_SHA']
+    waitFor: ['build-app']
+
+  - name: 'gcr.io/cloud-builders/docker'
+    id: 'push-app-latest'
+    args: ['push', 'us-central1-docker.pkg.dev/$PROJECT_ID/skyplus/app:latest']
+    waitFor: ['build-app']
+
+  - name: 'gcr.io/cloud-builders/docker'
+    id: 'push-job'
+    args: ['push', 'us-central1-docker.pkg.dev/$PROJECT_ID/skyplus/job:$COMMIT_SHA']
+    waitFor: ['build-job']
+
+  - name: 'gcr.io/cloud-builders/docker'
+    id: 'push-job-latest'
+    args: ['push', 'us-central1-docker.pkg.dev/$PROJECT_ID/skyplus/job:latest']
+    waitFor: ['build-job']
+
+  # ── 4. Deploy SERVICIO Streamlit ───────────────────────────────────────────
+  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+    id: 'deploy-app'
+    entrypoint: gcloud
+    args:
+      - 'run'
+      - 'deploy'
+      - 'skyplus-app'
+      - '--image=us-central1-docker.pkg.dev/$PROJECT_ID/skyplus/app:$COMMIT_SHA'
+      - '--region=us-central1'
+      - '--platform=managed'
+      - '--allow-unauthenticated'
+      - '--port=8080'
+      - '--memory=4Gi'
+      - '--cpu=2'
+      - '--timeout=600'
+      - '--concurrency=5'
+      - '--min-instances=0'
+      - '--max-instances=3'
+      - '--set-env-vars=ENERGYPLUS_EXEC=/usr/local/bin/energyplus'
+    waitFor: ['push-app']
+
+  # ── 5. Deploy JOB (crear o actualizar) ────────────────────────────────────
+  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+    id: 'deploy-job'
+    entrypoint: gcloud
+    args:
+      - 'run'
+      - 'jobs'
+      - 'deploy'
+      - 'skyplus-job'
+      - '--image=us-central1-docker.pkg.dev/$PROJECT_ID/skyplus/job:$COMMIT_SHA'
+      - '--region=us-central1'
+      - '--memory=4Gi'
+      - '--cpu=2'
+      - '--task-timeout=1200'
+      - '--max-retries=1'
+      - '--parallelism=1'
+    waitFor: ['push-job']
+
+images:
+  - 'us-central1-docker.pkg.dev/$PROJECT_ID/skyplus/app:$COMMIT_SHA'
+  - 'us-central1-docker.pkg.dev/$PROJECT_ID/skyplus/app:latest'
+  - 'us-central1-docker.pkg.dev/$PROJECT_ID/skyplus/job:$COMMIT_SHA'
+  - 'us-central1-docker.pkg.dev/$PROJECT_ID/skyplus/job:latest'
+
+timeout: '2400s'
