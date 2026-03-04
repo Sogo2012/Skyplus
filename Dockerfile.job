@@ -1,0 +1,19 @@
+# Dockerfile.job
+# =============================================================================
+# SKYPLUS — Cloud Run Job
+# Misma imagen base que el servicio principal — reutiliza todas las capas
+# Solo cambia el entrypoint: python job_runner.py en lugar de streamlit
+# =============================================================================
+
+FROM skyplus:base
+
+WORKDIR /app
+
+# Copiar solo lo necesario para el job
+COPY job_runner.py .
+COPY motor/ ./motor/
+COPY assets/ ./assets/
+COPY data/ ./data/
+
+# Entrypoint del job — no levanta servidor web
+CMD ["python", "job_runner.py"]
