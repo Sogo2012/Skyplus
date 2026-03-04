@@ -1,19 +1,49 @@
-# Dockerfile.job
-# =============================================================================
-# SKYPLUS — Cloud Run Job
-# Misma imagen base que el servicio principal — reutiliza todas las capas
-# Solo cambia el entrypoint: python job_runner.py en lugar de streamlit
-# =============================================================================
+FROM ubuntu:22.04
 
-FROM skyplus:base
+ENV DEBIAN_FRONTEND=noninteractive
+ENV TZ=America/Mexico_City
+
+RUN apt-get update && apt-get install -y \
+    python3.11 python3.11-dev python3-pip python3.11-venv \
+    wget curl unzip libgomp1 libglu1-mesa libgl1-mesa-glx libxt6 ca-certificates \
+    && apt-get clean && rm -rf /var/lib/apt/lists/*
+
+RUN update-alternatives --install /usr/bin/python3 python3 /usr/bin/python3.11 1 \
+    && update-alternatives --install /usr/bin/python  python  /usr/bin/python3.11 1
+
+ENV ENERGYPLUS_DIR=/usr/local/EnergyPlus-23-2-0
+RUN wget -q \
+    "https://github.com/NREL/EnergyPlus/releases/download/v23.2.0/EnergyPlus-23.2.0-7636e6b3e9-Linux-Ubuntu22.04-x86_64.tar.gz" \
+    -O /tmp/energyplus.tar.gz \
+    && mkdir -p ${ENERGYPLUS_DIR} \
+    && tar -xzf /tmp/energyplus.tar.gz -C ${ENERGYPLUS_DIR} --strip-components=1 \
+    && ln -sf ${ENERGYPLUS_DIR}/energyplus /usr/local/bin/energyplus \
+    && rm /tmp/energyplus.tar.gz
 
 WORKDIR /app
 
-# Copiar solo lo necesario para el job
-COPY job_runner.py .
-COPY motor/ ./motor/
-COPY assets/ ./assets/
-COPY data/ ./data/
+RUN pip3 install --no-cache-dir --upgrade pip setuptools wheel
 
-# Entrypoint del job — no levanta servidor web
-CMD ["python", "job_runner.py"]
+COPY requirements.txt .
+RUN pip3 install --no-cache-dir -r requirements.txt
+
+RUN pip3 install --no-cache-dir \
+    "pydantic<2.0" \
+    "ladybug-display-schema" \
+    "lbt-dragonfly" \
+    "lbt-honeybee" \
+    "honeybee-openstudio" \
+    "vtk" \
+    "ladybug-vtk" \
+    "honeybee-vtk" \
+    "google-auth" \
+    "google-api-python-client" \
+    "reportlab"
+
+COPY . .
+RUN mkdir -p /tmp/skyplus_sims /app/data && chmod 777 /tmp/skyplus_sims
+
+ENV PYTHONPATH=/app
+ENV ENERGYPLUS_EXEC=/usr/local/bin/energyplus
+
+CMD ["python3", "job_runner.py"]
