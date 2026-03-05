@@ -1340,7 +1340,7 @@ with tab_analitica:
             st.markdown(
                 f"Ingresa tus datos y calculamos la curva completa para tu nave de "
                 f"{ancho_nave:.0f}×{largo_nave:.0f} m. "
-                f"Recibirás el **reporte técnico PDF en tu correo** en aproximadamente {max(10, min(30, int(ancho_nave*largo_nave/1000)*3 + 10))} minutos."
+                f"Recibirás el **reporte técnico PDF en tu correo** en aproximadamente {max(20, min(40, int(ancho_nave*largo_nave/1000)*3 + 20))} minutos."
             )
             st.markdown("<div style='height:8px'></div>", unsafe_allow_html=True)
 
@@ -1462,7 +1462,7 @@ with tab_analitica:
                     <strong>{st.session_state.lead_empresa}</strong>.<br>
                     El reporte técnico PDF llegará a
                     <strong>{st.session_state.lead_correo}</strong>
-                    en aproximadamente <strong>{max(10, min(30, int(ancho_nave*largo_nave/1000)*3 + 10))} minutos</strong>.<br><br>
+                    en aproximadamente <strong>{max(20, min(40, int(ancho_nave*largo_nave/1000)*3 + 20))} minutos</strong>.<br><br>
                     Puedes cerrar esta ventana — el análisis continuará en la nube.
                 </div>
             </div>
@@ -1470,7 +1470,7 @@ with tab_analitica:
 
             render_cards([
                 {"label": "Estado",        "value": "Simulando en nube",  "delta": "7 simulaciones EnergyPlus", "green": True},
-                {"label": "Entrega",       "value": f"~{max(10, min(30, int(ancho_nave*largo_nave/1000)*3 + 10))} minutos", "delta": f"A: {st.session_state.lead_correo}"},
+                {"label": "Entrega",       "value": f"~{max(20, min(40, int(ancho_nave*largo_nave/1000)*3 + 20))} minutos", "delta": f"A: {st.session_state.lead_correo}"},
                 {"label": "Motor",         "value": "EnergyPlus 23.2",    "delta": "DOE oficial"},
                 {"label": "Análisis",      "value": "SFR 0% → 6%",       "delta": "Curva de optimización completa"},
             ])
