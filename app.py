@@ -747,11 +747,20 @@ with st.sidebar:
 
     datos_domo_sel = df_domos[df_domos['Modelo'] == modelo_sel].iloc[0]
     with st.expander("Propiedades del domo"):
-        col_a, col_b = st.columns(2)
-        col_a.metric("VLT",    f"{datos_domo_sel['VLT']:.0%}")
-        col_b.metric("SHGC",   f"{datos_domo_sel['SHGC']:.2f}")
-        col_a.metric("U-val",  f"{datos_domo_sel['U_Value']:.2f} W/m²K")
-        col_b.metric("Tamaño", f"{datos_domo_sel['Ancho_m']:.2f}×{datos_domo_sel['Largo_m']:.2f} m")
+        st.markdown(f"""
+        <style>
+        .domo-props {{font-size:0.72rem; line-height:1.8; color:#003C52;}}
+        .domo-props b {{color:#4A7C2F; font-size:0.70rem;}}
+        .domo-val {{font-size:0.78rem; font-weight:600; color:#003C52;}}
+        </style>
+        <div class="domo-props">
+        <b>VLT</b><br><span class="domo-val">{datos_domo_sel['VLT']:.0%}</span>&nbsp;&nbsp;&nbsp;
+        <b>SHGC</b><br><span class="domo-val">{datos_domo_sel['SHGC']:.2f}</span>
+        <br>
+        <b>U-valor</b><br><span class="domo-val">{datos_domo_sel['U_Value']:.2f} W/m²K</span>&nbsp;&nbsp;&nbsp;
+        <b>Tamaño</b><br><span class="domo-val">{datos_domo_sel['Ancho_m']:.2f}×{datos_domo_sel['Largo_m']:.2f} m</span>
+        </div>
+        """, unsafe_allow_html=True)
 
     # Estado motor
     st.divider()
@@ -780,12 +789,11 @@ with st.sidebar:
 # =============================================================================
 # 5. TABS — sin emojis, estilo técnico
 # =============================================================================
-tab_config, tab_clima, tab_3d, tab_analitica, tab_reporte = st.tabs([
+tab_config, tab_clima, tab_3d, tab_analitica = st.tabs([
     "Selección de Clima",
     "Contexto Climático",
     "Geometría 3D",
     "Simulación Energética",
-    "Reporte Final",
 ])
 
 
@@ -1357,10 +1365,33 @@ with tab_analitica:
                 telefono_contacto = col_f2.text_input("Teléfono (opcional)")
                 comentario        = st.text_area("Comentarios", height=60)
 
+                st.markdown("""
+                <style>
+                /* CTA verde — selector robusto Streamlit */
+                [data-testid="stFormSubmitButton"] button,
+                [data-testid="stFormSubmitButton"] > button {{
+                    background: linear-gradient(135deg, #4A7C2F 0%, #3a6224 100%) !important;
+                    color: #FFFFFF !important;
+                    font-weight: 800 !important;
+                    font-size: 1.05rem !important;
+                    letter-spacing: 0.6px !important;
+                    border: none !important;
+                    border-radius: 8px !important;
+                    padding: 0.8rem 1rem !important;
+                    box-shadow: 0 4px 14px rgba(74,124,47,0.40) !important;
+                    transition: all 0.2s ease !important;
+                    width: 100% !important;
+                }}
+                [data-testid="stFormSubmitButton"] button:hover {{
+                    background: linear-gradient(135deg, #3a6224 0%, #2d4e1c 100%) !important;
+                    box-shadow: 0 6px 20px rgba(74,124,47,0.55) !important;
+                    transform: translateY(-2px) !important;
+                }}
+                </style>
+                """, unsafe_allow_html=True)
                 enviado = st.form_submit_button(
-                    "Solicitar reporte completo",
+                    "🚀  SOLICITAR MI REPORTE TÉCNICO GRATUITO  →",
                     use_container_width=True,
-                    type="primary",
                 )
 
             if enviado:
@@ -1494,203 +1525,3 @@ with tab_analitica:
                 else:
                     st.session_state[k] = None if "resultado" in k else ""
             st.rerun()
-
-
-# =============================================================================
-# TAB 5 — REPORTE FINAL
-# =============================================================================
-with tab_reporte:
-    page_header(
-        "📄 Solicitar Reporte Técnico",
-        "Reporte PDF profesional con análisis completo EnergyPlus — enviado a tu correo en 20 minutos"
-    )
-
-    if not st.session_state.calculo_completado or not st.session_state.resultado_motor:
-        if st.session_state.diseno_completado and not st.session_state.lead_capturado:
-            st.markdown(f"""
-            <div class="eco-disclaimer">
-                Tu simulación de diseño está lista. Completa tus datos en
-                <strong>Simulación Energética</strong> para desbloquear el reporte completo
-                con la curva de optimización.
-            </div>
-            """, unsafe_allow_html=True)
-        elif st.session_state.lead_capturado and not st.session_state.calculo_completado:
-            st.info("La curva de optimización está calculando. Regresa en unos minutos.")
-        else:
-            st.markdown(f"""
-            <div class="eco-disclaimer">
-                Completa la simulación en <strong>Simulación Energética</strong>
-                para generar el reporte.
-            </div>
-            """, unsafe_allow_html=True)
-    else:
-        res    = st.session_state.resultado_motor
-        clima  = st.session_state.clima_data or {}
-        md     = clima.get("metadata", {})
-        ciudad = md.get("ciudad", "N/D")
-        pais   = md.get("pais", "")
-        datos_domo = df_domos[df_domos["Modelo"] == modelo_sel].iloc[0]
-
-        st.markdown('<span class="eco-badge-ok">Reporte listo</span>', unsafe_allow_html=True)
-        st.markdown("<div style='height:12px'></div>", unsafe_allow_html=True)
-
-        with st.expander("Vista previa del reporte", expanded=True):
-            st.markdown(f"""
-**REPORTE TÉCNICO SKYPLUS**
----
-**Proyecto:** Nave Industrial {ancho_nave:.0f}×{largo_nave:.0f}×{alto_nave:.0f} m
-**Uso:** {tipo_uso}
-**Ubicación:** {ciudad}, {pais}
-**Clima:** {st.session_state.estacion_seleccionada or "N/D"} (TMYx OneBuilding.org)
-**Domo:** {modelo_sel}
-**Cliente:** {st.session_state.lead_nombre} — {st.session_state.lead_empresa}
-**Fecha:** {__import__("pandas").Timestamp.now().strftime("%d/%m/%Y")}
-
----
-{res["recomendacion"]}
-
----
-**Motor:** EnergyPlus 23.2 (DOE) + Método analítico EPW
-**Normativa:** ISO 8995-1:2002 · ANSI/IES RP-7-21 · UDI Mardaljevic 2006
-            """)
-
-        st.divider()
-        section_title("Curva de optimización SFR")
-        st.plotly_chart(fix_figura(res["figura"]), use_container_width=True)
-
-        # Mapa de calor luz natural
-        st.divider()
-        section_title("Disponibilidad de luz natural")
-        st.caption("Lux promedio interior por mes y hora del día para el SFR óptimo dual.")
-
-        if st.session_state.epw_path and os.path.exists(st.session_state.epw_path):
-            try:
-                _sfr_plot = res["sfr_dual"] if res["sfr_dual"] is not None else res["sfr_opt"]
-                _transmis = (_sfr_plot / 100.0) * datos_domo["VLT"] * 0.736
-
-                with open(st.session_state.epw_path, "r", errors="ignore") as _f:
-                    _lineas = _f.readlines()[8:]
-                _illum = []
-                for _l in _lineas:
-                    _p = _l.strip().split(",")
-                    try:
-                        _illum.append(float(_p[19]) * 10.0 if len(_p) >= 20 else 0.0)
-                    except (ValueError, IndexError):
-                        _illum.append(0.0)
-                _illum = np.array(_illum[:8760])
-                _fc_8760 = _illum * _transmis
-
-                _dias_mes  = [31,28,31,30,31,30,31,31,30,31,30,31]
-                _meses_es  = ["Ene","Feb","Mar","Abr","May","Jun","Jul","Ago","Sep","Oct","Nov","Dic"]
-                _matriz    = np.zeros((12, 24))
-                _h = 0
-                for _m in range(12):
-                    for _d in range(_dias_mes[_m]):
-                        for _hr in range(24):
-                            if _h < 8760:
-                                _matriz[_m][_hr] += _fc_8760[_h]
-                            _h += 1
-                    _matriz[_m] /= _dias_mes[_m]
-
-                _lux_sp = {"Warehouse":300,"Manufacturing":500,"Retail":500,
-                           "SuperMarket":500,"MediumOffice":500}.get(tipo_uso, 300)
-                _max_v  = float(_matriz.max())
-
-                fig_hm = go.Figure(data=go.Heatmap(
-                    z=_matriz, x=list(range(24)), y=_meses_es,
-                    colorscale=[[0,"#FFFFFF"],[0.15,ECO_AZUL_LT],
-                                [0.4,ECO_VERDE],[0.7,ECO_AZUL],[1.0,"#001F2B"]],
-                    colorbar=dict(
-                        title="Lux",
-                        tickvals=[0, _lux_sp, 750, 2000, min(_max_v, 3000)],
-                        ticktext=["0", f"{int(_lux_sp)} setpoint",
-                                  "750 IES", "2,000 UDI", f"{min(_max_v,3000):.0f} max"],
-                    ),
-                    hovertemplate="Mes: %{y} · Hora: %{x}:00 · fc: %{z:.0f} lux<extra></extra>",
-                ))
-                fig_hm.update_layout(
-                    title=dict(
-                        text=f"Disponibilidad de Luz Natural — SFR {_sfr_plot}%",
-                        font=dict(size=13, color=ECO_AZUL), x=0.0,
-                    ),
-                    xaxis=dict(title="Hora (00:00–23:00)", tickmode="linear", tick0=0, dtick=2),
-                    yaxis=dict(title="Mes", autorange="reversed"),
-                    template="plotly_white",
-                    height=440,
-                    margin=dict(l=60, r=140, t=50, b=60),
-                )
-                st.plotly_chart(fig_hm, use_container_width=True)
-            except Exception as e:
-                st.warning(f"No se pudo generar el mapa de calor: {e}")
-
-        st.divider()
-        section_title("Solicitar Reporte")
-        st.caption(f"Se enviará a: {st.session_state.lead_correo}")
-
-        # CTA verde con HTML — garantizado en Cloud Run
-        st.markdown(f"""
-        <style>
-        .cta-btn {{
-            display: block;
-            width: 100%;
-            background: linear-gradient(135deg, #4A7C2F, #3a6224);
-            color: white !important;
-            font-weight: 800;
-            font-size: 1.15rem;
-            text-align: center;
-            padding: 1rem 1.5rem;
-            border-radius: 8px;
-            border: none;
-            cursor: pointer;
-            letter-spacing: 0.5px;
-            box-shadow: 0 4px 15px rgba(74,124,47,0.35);
-            margin: 0.5rem 0 1.5rem 0;
-            text-decoration: none;
-            transition: all 0.2s;
-        }}
-        .cta-btn:hover {{
-            background: linear-gradient(135deg, #3a6224, #2d4e1c);
-            box-shadow: 0 6px 20px rgba(74,124,47,0.5);
-            transform: translateY(-2px);
-        }}
-        </style>
-        """, unsafe_allow_html=True)
-
-        if st.button("🚀  SOLICITAR MI REPORTE TÉCNICO GRATUITO  →", use_container_width=True):
-            st.success(
-                f"✅ Reporte enviado a **{st.session_state.lead_correo}**. "
-                "Recibirás el PDF en aproximadamente 20 minutos. "
-                "Un consultor de ECO Consultor se pondrá en contacto contigo."
-            )
-        # Estilo inyectado al botón de Streamlit via clase
-        st.markdown("""
-        <script>
-        const btns = window.parent.document.querySelectorAll('button[kind="secondaryFormSubmit"], .stButton button');
-        btns.forEach(b => { if(b.innerText.includes('SOLICITAR')) b.classList.add('cta-btn'); });
-        </script>
-        """, unsafe_allow_html=True)
-
-        st.divider()
-        col_cta1, col_cta2 = st.columns(2)
-        with col_cta1:
-            st.markdown(f"""
-            <div class="eco-card">
-                <div class="eco-card-label">Estudio BEM Premium</div>
-                <div style="font-size:0.8rem;color:{ECO_GRIS};margin-top:6px;line-height:1.6">
-                    Simulación espacial con Radiance. Validación punto por punto,
-                    certificaciones LEED v4.1 y EDGE.<br><br>
-                    <em>Contacta a tu consultor Eco Consultor.</em>
-                </div>
-            </div>
-            """, unsafe_allow_html=True)
-        with col_cta2:
-            st.markdown(f"""
-            <div class="eco-card eco-card-green">
-                <div class="eco-card-label">Proyecto ejecutivo</div>
-                <div style="font-size:0.8rem;color:{ECO_GRIS};margin-top:6px;line-height:1.6">
-                    Layout de domos, especificaciones técnicas, presupuesto y análisis de ROI.
-                    Diseñado para licitaciones y proyectos de inversión.<br><br>
-                    <em>Disponible con tu consultor Sunoptics®.</em>
-                </div>
-            </div>
-            """, unsafe_allow_html=True)
