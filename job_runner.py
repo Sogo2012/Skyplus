@@ -332,6 +332,20 @@ def generar_pdf(config, resultado, lead):
     n_domos  = resultado.get("n_domos",   resultado.get("n_domos_diseno",  0))
     sfr_real_pct = resultado.get("sfr_real", resultado.get("sfr_real_diseno", sfr_d * 100))
     sfr_real = sfr_real_pct / 100 if sfr_real_pct > 1 else sfr_real_pct
+
+    # Si n_domos sigue en 0, buscarlo en df_curva_raw según sfr_diseno
+    df_curva_raw_tmp = resultado.get("df_curva_raw", [])
+    if n_domos == 0 and df_curva_raw_tmp:
+        sfr_d_pct = round(sfr_d * 100)
+        # Buscar el SFR más cercano al de diseño
+        match = next((r for r in df_curva_raw_tmp if r.get("sfr_pct") == sfr_d_pct), None)
+        if match is None:
+            match = min(df_curva_raw_tmp, key=lambda r: abs(r.get("sfr_pct", 0) - sfr_d_pct))
+        if match:
+            n_domos = match.get("n_domos", 0)
+            sfr_real_raw = match.get("sfr_real_pct", sfr_d * 100)
+            sfr_real = sfr_real_raw / 100 if sfr_real_raw > 1 else sfr_real_raw
+            logger.info(f"n_domos calculado desde df_curva_raw: {n_domos} (SFR diseño {sfr_d_pct}%)")
     sfr_opt  = resultado.get("sfr_opt")
     sfr_dual = resultado.get("sfr_dual")
     kwh_base = resultado.get("kwh_base", 0)
@@ -836,15 +850,29 @@ ingenieria@ecoconsultor.com"""
 def registrar_sheets(lead, config, resultado=None):
     try:
         import google.auth
+        import google.auth.transport.requests
         from googleapiclient.discovery import build
 
-        creds, _ = google.auth.default(
+        logger.info(f"Intentando registrar en Sheets ID: {SHEETS_ID}")
+
+        if not SHEETS_ID:
+            logger.error("SHEETS_ID vacío — variable de entorno no configurada")
+            return
+
+        # Autenticación via ADC (Application Default Credentials)
+        creds, project = google.auth.default(
             scopes=["https://www.googleapis.com/auth/spreadsheets"]
         )
-        service = build("sheets", "v4", credentials=creds, cache_discovery=False)
-        sheet   = service.spreadsheets()
+        logger.info(f"Credenciales obtenidas — proyecto: {project}")
 
-        # Extraer KPIs del resultado si están disponibles
+        # Refrescar token explícitamente
+        request = google.auth.transport.requests.Request()
+        creds.refresh(request)
+        logger.info("Token refrescado correctamente")
+
+        service = build("sheets", "v4", credentials=creds, cache_discovery=False)
+
+        # Extraer KPIs del resultado
         sfr_opt  = str(resultado.get("sfr_opt",  "")) if resultado else ""
         sfr_dual = str(resultado.get("sfr_dual", "")) if resultado else ""
         neto_opt = str(round(resultado.get("neto_opt", 0))) if resultado else ""
@@ -869,16 +897,26 @@ def registrar_sheets(lead, config, resultado=None):
             kwh_base,
             "1",
         ]]
-        sheet.values().append(
+
+        logger.info(f"Escribiendo fila: {fila[0][:4]}")
+
+        response = service.spreadsheets().values().append(
             spreadsheetId=SHEETS_ID,
             range="Sheet1!A:P",
             valueInputOption="USER_ENTERED",
             insertDataOption="INSERT_ROWS",
             body={"values": fila},
         ).execute()
-        logger.info(f"Lead registrado en Sheets: {lead.get('correo')}")
+
+        updated = response.get("updates", {}).get("updatedRows", 0)
+        logger.info(f"✅ Lead registrado en Sheets — filas actualizadas: {updated} | correo: {lead.get('correo')}")
+
+    except google.auth.exceptions.DefaultCredentialsError as e:
+        logger.error(f"Error de credenciales ADC: {e}")
     except Exception as e:
-        logger.error(f"Error registrando en Sheets: {e}")
+        logger.error(f"Error registrando en Sheets: {type(e).__name__}: {e}")
+        import traceback
+        logger.error(traceback.format_exc())
 
 
 def download_epw_from_gcs(gcs_uri):
