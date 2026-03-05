@@ -1130,10 +1130,11 @@ with tab_3d:
                     i=[0,0],j=[1,2],k=[2,3],color=COL_DOMO,opacity=0.9,
                     flatshading=True,showlegend=False,hoverinfo='skip'))
                 dxs.append(cx); dys.append(cy); dzs.append(H+0.05)
-        fig3d.add_trace(go.Scatter3d(x=dxs,y=dys,z=dzs,mode='markers',
-            marker=dict(size=4,color=COL_DOMO,line=dict(color=COL_DOMO_E,width=1)),
+        # Leyenda limpia sin marcadores centroide
+        fig3d.add_trace(go.Scatter3d(x=[None],y=[None],z=[None],mode='markers',
+            marker=dict(size=6,color=COL_DOMO,symbol='square'),
             name=f"Domos Sunoptics® ({num_domos} uds)",showlegend=True,
-            hovertemplate=f"Domo<br>SFR={sfr_pct:.1f}%<extra></extra>"))
+            hoverinfo='skip'))
 
         # Sunpath
         if mostrar_sol:
@@ -1390,7 +1391,7 @@ with tab_analitica:
                 </style>
                 """, unsafe_allow_html=True)
                 enviado = st.form_submit_button(
-                    "🚀  SOLICITAR MI REPORTE TÉCNICO GRATUITO  →",
+                    "Descargue Reporte Tecnico Completo",
                     use_container_width=True,
                 )
 
