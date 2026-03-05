@@ -259,73 +259,60 @@ def _draw_header(canvas_obj, doc, eco_path, sun_path, seccion=""):
     """Header blanco ECO + Sunoptics en todas las páginas."""
     W, H = A4
     canvas_obj.saveState()
+    try:
+        canvas_obj.setFillColor(white)
+        canvas_obj.rect(0, H - 2.4*cm, W, 2.4*cm, fill=1, stroke=0)
 
-    # Fondo blanco (sin franja azul)
-    canvas_obj.setFillColor(white)
-    canvas_obj.rect(0, H - 2.4*cm, W, 2.4*cm, fill=1, stroke=0)
+        canvas_obj.setStrokeColor(ECO_AZUL)
+        canvas_obj.setLineWidth(4)
+        canvas_obj.line(0, H - 0.15*cm, W, H - 0.15*cm)
 
-    # Línea azul superior (borde superior de página)
-    canvas_obj.setStrokeColor(ECO_AZUL)
-    canvas_obj.setLineWidth(4)
-    canvas_obj.line(0, H - 0.15*cm, W, H - 0.15*cm)
+        if os.path.exists(eco_path):
+            canvas_obj.drawImage(
+                eco_path, 0.5*cm, H - 2.2*cm,
+                width=2.0*cm, height=2.0*cm,
+                preserveAspectRatio=True, mask='auto',
+            )
 
-    # Logo ECO — cuadrado 800x800, mostrar grande
-    if os.path.exists(eco_path):
-        canvas_obj.drawImage(
-            eco_path, 0.5*cm, H - 2.2*cm,
-            width=2.0*cm, height=2.0*cm,
-            preserveAspectRatio=True, mask='auto',
+        if seccion:
+            canvas_obj.setFillColor(ECO_GRIS)
+            canvas_obj.setFont("Helvetica", 7)
+            canvas_obj.drawCentredString(W/2, H - 1.35*cm, seccion.upper())
+
+        if os.path.exists(sun_path):
+            canvas_obj.drawImage(
+                sun_path, W - 6.0*cm, H - 2.1*cm,
+                width=5.6*cm, height=2.0*cm,
+                preserveAspectRatio=True, mask='auto',
+            )
+
+        canvas_obj.setStrokeColor(ECO_VERDE)
+        canvas_obj.setLineWidth(2)
+        canvas_obj.line(0, H - 2.4*cm, W, H - 2.4*cm)
+
+        canvas_obj.setStrokeColor(ECO_LINEA)
+        canvas_obj.setLineWidth(0.4)
+        canvas_obj.line(0.6*cm, H - 1.2*cm, W - 0.6*cm, H - 1.2*cm)
+
+        canvas_obj.setFillColor(ECO_GRIS)
+        canvas_obj.setFont("Helvetica", 6.5)
+        canvas_obj.drawCentredString(
+            W/2, 0.6*cm,
+            "SkyPlus v22.2  ·  ECO Consultor  ·  EnergyPlus 23.2 (DOE)  ·  ISO 8995-1  ·  ANSI/IES RP-7-21"
         )
+        canvas_obj.setStrokeColor(ECO_LINEA)
+        canvas_obj.setLineWidth(0.5)
+        canvas_obj.line(1.5*cm, 1.0*cm, W - 1.5*cm, 1.0*cm)
 
-    # Nombre sección centrado en gris
-    if seccion:
         canvas_obj.setFillColor(ECO_GRIS)
         canvas_obj.setFont("Helvetica", 7)
-        canvas_obj.drawCentredString(W/2, H - 1.35*cm, seccion.upper())
+        canvas_obj.drawRightString(W - 1.5*cm, 0.6*cm, f"Página {doc.page}")
 
-    # Logo Sunoptics — horizontal 377x134, aspect ratio 2.81:1
-    # Para misma altura visual que ECO (2cm) → ancho = 2cm * 2.81 = 5.6cm
-    if os.path.exists(sun_path):
-        canvas_obj.drawImage(
-            sun_path, W - 6.0*cm, H - 2.1*cm,
-            width=5.6*cm, height=2.0*cm,
-            preserveAspectRatio=True, mask='auto',
-        )
-
-    # Línea verde bajo header
-    canvas_obj.setStrokeColor(ECO_VERDE)
-    canvas_obj.setLineWidth(2)
-    canvas_obj.line(0, H - 2.4*cm, W, H - 2.4*cm)
-
-    # Línea divisoria sutil en medio del header
-    canvas_obj.setStrokeColor(ECO_LINEA)
-    canvas_obj.setLineWidth(0.4)
-    canvas_obj.line(0.6*cm, H - 1.2*cm, W - 0.6*cm, H - 1.2*cm)
-
-    # Footer
-    canvas_obj.setFillColor(ECO_GRIS)
-    canvas_obj.setFont("Helvetica", 6.5)
-    canvas_obj.drawCentredString(
-        W/2, 0.6*cm,
-        "SkyPlus v22.2  ·  ECO Consultor  ·  EnergyPlus 23.2 (DOE)  ·  ISO 8995-1  ·  ANSI/IES RP-7-21"
-    )
-    canvas_obj.setStrokeColor(ECO_LINEA)
-    canvas_obj.setLineWidth(0.5)
-    canvas_obj.line(1.5*cm, 1.0*cm, W - 1.5*cm, 1.0*cm)
-
-    # Número de página
-    canvas_obj.setFillColor(ECO_GRIS)
-    canvas_obj.setFont("Helvetica", 7)
-    canvas_obj.drawRightString(W - 1.5*cm, 0.6*cm, f"Página {doc.page}")
-
-    canvas_obj.restoreState()
-
-    # Número de página
-    canvas_obj.setFillColor(ECO_GRIS)
-    canvas_obj.setFont("Helvetica", 7)
-    canvas_obj.drawRightString(W - 1.5*cm, 0.6*cm, f"Página {doc.page}")
-
-    canvas_obj.restoreState()
+    except Exception as e:
+        import logging
+        logging.warning(f"Header error p{doc.page}: {e}")
+    finally:
+        canvas_obj.restoreState()
 
 
 def generar_pdf(config, resultado, lead):
