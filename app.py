@@ -1243,7 +1243,7 @@ with tab_analitica:
             st.markdown(
                 f"Ingresa tus datos y calculamos la curva completa para tu nave de "
                 f"{ancho_nave:.0f}×{largo_nave:.0f} m. "
-                "Recibirás el **reporte técnico PDF en tu correo** en aproximadamente 10 minutos."
+                f"Recibirás el **reporte técnico PDF en tu correo** en aproximadamente {max(10, min(30, int(ancho_nave*largo_nave/1000)*3 + 10))} minutos."
             )
             st.markdown("<div style='height:8px'></div>", unsafe_allow_html=True)
 
@@ -1301,6 +1301,17 @@ with tab_analitica:
                 st.error("No se pudo preparar el archivo climático. Intenta nuevamente.")
                 st.stop()
 
+            # Subir sql_base a GCS si existe (reutiliza SFR=0 de Etapa 1)
+            _sql_base = st.session_state.resultado_diseno.get("sql_base") \
+                        if st.session_state.resultado_diseno else None
+            gcs_sql_base = None
+            if _sql_base and os.path.exists(_sql_base):
+                with st.spinner("Optimizando simulación..."):
+                    gcs_sql_base = upload_epw_to_gcs(
+                        _sql_base,
+                        st.session_state.lead_correo + "_sql",
+                    )
+
             _config_job = {
                 "ancho":        ancho_nave,
                 "largo":        largo_nave,
@@ -1324,10 +1335,10 @@ with tab_analitica:
                 "telefono":   st.session_state.lead_telefono,
                 "comentario": st.session_state.lead_comentario,
             }
-            _sql_base = st.session_state.resultado_diseno.get("sql_base") \
+            _sql_base_job = st.session_state.resultado_diseno.get("sql_base") \
                         if st.session_state.resultado_diseno else None
 
-            ok, msg = lanzar_cloud_run_job(_config_job, _lead_job, _sql_base)
+            ok, msg = lanzar_cloud_run_job(_config_job, _lead_job, gcs_sql_base)
 
             if ok:
                 st.session_state.bg_lanzado = True
@@ -1354,7 +1365,7 @@ with tab_analitica:
                     <strong>{st.session_state.lead_empresa}</strong>.<br>
                     El reporte técnico PDF llegará a
                     <strong>{st.session_state.lead_correo}</strong>
-                    en aproximadamente <strong>10 minutos</strong>.<br><br>
+                    en aproximadamente <strong>{max(10, min(30, int(ancho_nave*largo_nave/1000)*3 + 10))} minutos</strong>.<br><br>
                     Puedes cerrar esta ventana — el análisis continuará en la nube.
                 </div>
             </div>
@@ -1362,7 +1373,7 @@ with tab_analitica:
 
             render_cards([
                 {"label": "Estado",        "value": "Simulando en nube",  "delta": "7 simulaciones EnergyPlus", "green": True},
-                {"label": "Entrega",       "value": "~10 minutos",        "delta": f"A: {st.session_state.lead_correo}"},
+                {"label": "Entrega",       "value": f"~{max(10, min(30, int(ancho_nave*largo_nave/1000)*3 + 10))} minutos", "delta": f"A: {st.session_state.lead_correo}"},
                 {"label": "Motor",         "value": "EnergyPlus 23.2",    "delta": "DOE oficial"},
                 {"label": "Análisis",      "value": "SFR 0% → 6%",       "delta": "Curva de optimización completa"},
             ])
