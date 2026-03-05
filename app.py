@@ -747,20 +747,10 @@ with st.sidebar:
 
     datos_domo_sel = df_domos[df_domos['Modelo'] == modelo_sel].iloc[0]
     with st.expander("Propiedades del domo"):
-        st.markdown(f"""
-        <style>
-        .domo-props {{font-size:0.72rem; line-height:1.8; color:#003C52;}}
-        .domo-props b {{color:#4A7C2F; font-size:0.70rem;}}
-        .domo-val {{font-size:0.78rem; font-weight:600; color:#003C52;}}
-        </style>
-        <div class="domo-props">
-        <b>VLT</b><br><span class="domo-val">{datos_domo_sel['VLT']:.0%}</span>&nbsp;&nbsp;&nbsp;
-        <b>SHGC</b><br><span class="domo-val">{datos_domo_sel['SHGC']:.2f}</span>
-        <br>
-        <b>U-valor</b><br><span class="domo-val">{datos_domo_sel['U_Value']:.2f} W/m²K</span>&nbsp;&nbsp;&nbsp;
-        <b>Tamaño</b><br><span class="domo-val">{datos_domo_sel['Ancho_m']:.2f}×{datos_domo_sel['Largo_m']:.2f} m</span>
-        </div>
-        """, unsafe_allow_html=True)
+        st.write(f"**VLT:** {datos_domo_sel['VLT']:.0%}")
+        st.write(f"**SHGC:** {datos_domo_sel['SHGC']:.2f}")
+        st.write(f"**U-valor:** {datos_domo_sel['U_Value']:.2f} W/m²K")
+        st.write(f"**Tamaño:** {datos_domo_sel['Ancho_m']:.2f} × {datos_domo_sel['Largo_m']:.2f} m")
 
     # Estado motor
     st.divider()
@@ -1368,26 +1358,27 @@ with tab_analitica:
 
                 st.markdown("""
                 <style>
-                /* CTA verde — selector robusto Streamlit */
-                [data-testid="stFormSubmitButton"] button,
-                [data-testid="stFormSubmitButton"] > button {{
-                    background: linear-gradient(135deg, #4A7C2F 0%, #3a6224 100%) !important;
+                /* CTA verde — múltiples selectores para máxima compatibilidad */
+                div[data-testid="stFormSubmitButton"] button {
+                    background-color: #28a745 !important;
+                    background: #28a745 !important;
                     color: #FFFFFF !important;
                     font-weight: 800 !important;
-                    font-size: 1.05rem !important;
-                    letter-spacing: 0.6px !important;
-                    border: none !important;
-                    border-radius: 8px !important;
-                    padding: 0.8rem 1rem !important;
-                    box-shadow: 0 4px 14px rgba(74,124,47,0.40) !important;
-                    transition: all 0.2s ease !important;
+                    font-size: 1.0rem !important;
+                    border: 2px solid #1e7e34 !important;
+                    border-radius: 6px !important;
+                    padding: 0.65rem 1rem !important;
                     width: 100% !important;
-                }}
-                [data-testid="stFormSubmitButton"] button:hover {{
-                    background: linear-gradient(135deg, #3a6224 0%, #2d4e1c 100%) !important;
-                    box-shadow: 0 6px 20px rgba(74,124,47,0.55) !important;
-                    transform: translateY(-2px) !important;
-                }}
+                }
+                div[data-testid="stFormSubmitButton"] button:hover {
+                    background-color: #1e7e34 !important;
+                    background: #1e7e34 !important;
+                    color: #FFFFFF !important;
+                }
+                div[data-testid="stFormSubmitButton"] button p {
+                    color: #FFFFFF !important;
+                    font-weight: 800 !important;
+                }
                 </style>
                 """, unsafe_allow_html=True)
                 enviado = st.form_submit_button(
