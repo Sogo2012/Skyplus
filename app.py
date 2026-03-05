@@ -1501,8 +1501,8 @@ with tab_analitica:
 # =============================================================================
 with tab_reporte:
     page_header(
-        "Reporte Ejecutivo",
-        "Descarga el reporte técnico PDF con la curva de optimización y la recomendación SkyPlus"
+        "📄 Solicitar Reporte Técnico",
+        "Reporte PDF profesional con análisis completo EnergyPlus — enviado a tu correo en 20 minutos"
     )
 
     if not st.session_state.calculo_completado or not st.session_state.resultado_motor:
@@ -1624,14 +1624,51 @@ with tab_reporte:
                 st.warning(f"No se pudo generar el mapa de calor: {e}")
 
         st.divider()
-        section_title("Descarga del reporte")
+        section_title("Solicitar Reporte")
         st.caption(f"Se enviará a: {st.session_state.lead_correo}")
 
-        if st.button("Generar y enviar reporte PDF", type="primary", use_container_width=True):
+        # CTA verde con HTML — garantizado en Cloud Run
+        st.markdown(f"""
+        <style>
+        .cta-btn {{
+            display: block;
+            width: 100%;
+            background: linear-gradient(135deg, #4A7C2F, #3a6224);
+            color: white !important;
+            font-weight: 800;
+            font-size: 1.15rem;
+            text-align: center;
+            padding: 1rem 1.5rem;
+            border-radius: 8px;
+            border: none;
+            cursor: pointer;
+            letter-spacing: 0.5px;
+            box-shadow: 0 4px 15px rgba(74,124,47,0.35);
+            margin: 0.5rem 0 1.5rem 0;
+            text-decoration: none;
+            transition: all 0.2s;
+        }}
+        .cta-btn:hover {{
+            background: linear-gradient(135deg, #3a6224, #2d4e1c);
+            box-shadow: 0 6px 20px rgba(74,124,47,0.5);
+            transform: translateY(-2px);
+        }}
+        </style>
+        """, unsafe_allow_html=True)
+
+        if st.button("🚀  SOLICITAR MI REPORTE TÉCNICO GRATUITO  →", use_container_width=True):
             st.success(
-                f"Reporte enviado a {st.session_state.lead_correo}. "
-                "Un consultor de Eco Consultor se pondrá en contacto."
+                f"✅ Reporte enviado a **{st.session_state.lead_correo}**. "
+                "Recibirás el PDF en aproximadamente 20 minutos. "
+                "Un consultor de ECO Consultor se pondrá en contacto contigo."
             )
+        # Estilo inyectado al botón de Streamlit via clase
+        st.markdown("""
+        <script>
+        const btns = window.parent.document.querySelectorAll('button[kind="secondaryFormSubmit"], .stButton button');
+        btns.forEach(b => { if(b.innerText.includes('SOLICITAR')) b.classList.add('cta-btn'); });
+        </script>
+        """, unsafe_allow_html=True)
 
         st.divider()
         col_cta1, col_cta2 = st.columns(2)
