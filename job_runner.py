@@ -283,8 +283,8 @@ def _draw_header(canvas_obj, doc, eco_path, sun_path, seccion=""):
         # Logo Sunoptics — horizontal 377x134, reducido
         if os.path.exists(sun_path):
             canvas_obj.drawImage(
-                sun_path, W - 4.5*cm, H - 1.9*cm,
-                width=4.0*cm, height=1.4*cm,
+                sun_path, W - 3.8*cm, H - 1.8*cm,
+                width=3.3*cm, height=1.15*cm,
                 preserveAspectRatio=True, mask='auto',
             )
 
@@ -329,8 +329,9 @@ def generar_pdf(config, resultado, lead):
     shgc     = config.get("domo_shgc", 0.48)
     sfr_d    = config.get("sfr_diseno", 0.03)
 
-    n_domos  = resultado.get("n_domos_diseno", 0)
-    sfr_real = resultado.get("sfr_real_diseno", sfr_d)
+    n_domos  = resultado.get("n_domos",   resultado.get("n_domos_diseno",  0))
+    sfr_real_pct = resultado.get("sfr_real", resultado.get("sfr_real_diseno", sfr_d * 100))
+    sfr_real = sfr_real_pct / 100 if sfr_real_pct > 1 else sfr_real_pct
     sfr_opt  = resultado.get("sfr_opt")
     sfr_dual = resultado.get("sfr_dual")
     kwh_base = resultado.get("kwh_base", 0)
@@ -570,13 +571,13 @@ def generar_pdf(config, resultado, lead):
     story.append(Paragraph("Ficha Técnica del Domo", s_h2))
     t_ficha = Table([
         ["Parámetro", "Valor", "Descripción"],
-        ["Modelo",      modelo,           "Referencia Sunoptics®"],
+        ["Modelo",      Paragraph(modelo, s("mod", fontSize=8, textColor=ECO_GRIS, wordWrap="CJK")), "Referencia Sunoptics®"],
         ["VLT",         f"{vlt:.0%}",     "Transmitancia luminosa visible (NFRC 200)"],
         ["SHGC",        f"{shgc:.2f}",    "Solar Heat Gain Coefficient (NFRC 200)"],
         ["SFR diseño",  f"{sfr_d*100:.0f}%", "Área domos / Área techo"],
         ["Domos",       str(n_domos),     "Unidades instaladas en cuadrícula simétrica"],
         ["Normativa",   "ISO 8995-1",     "Setpoint iluminación según tipo de uso"],
-    ], colWidths=[3.5*cm, 3.5*cm, 10.5*cm])
+    ], colWidths=[3.0*cm, 4.5*cm, 10.0*cm])
     t_ficha.setStyle(TableStyle([
         ('FONTNAME',       (0,0),(-1,0), 'Helvetica-Bold'),
         ('FONTSIZE',       (0,0),(-1,-1), 8.5),
