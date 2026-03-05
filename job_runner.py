@@ -523,24 +523,21 @@ def generar_pdf(config, resultado, lead):
     # Domo specs
     story.append(Spacer(1, 0.5*cm))
     story.append(Paragraph("Domo Sunoptics® Especificado", s_h2))
+    s_lbl = s("lbl", fontSize=7.5, textColor=ECO_AZUL, fontName="Helvetica-Bold")
+    s_val = s("val", fontSize=8,   textColor=ECO_AZUL)
     t_domo = Table([
-        ["Modelo", modelo, "VLT", f"{vlt:.0%}", "SHGC", f"{shgc:.2f}",
-         "SFR diseño", f"{sfr_d*100:.0f}%  ({n_domos} domos)"],
-    ], colWidths=[2*cm, 4*cm, 1.2*cm, 1.5*cm, 1.5*cm, 1.5*cm, 2.5*cm, 3.3*cm])
+        [Paragraph("Modelo",     s_lbl), Paragraph(modelo,                          s_val),
+         Paragraph("VLT",        s_lbl), Paragraph(f"{vlt:.0%}",                    s_val),
+         Paragraph("SHGC",       s_lbl), Paragraph(f"{shgc:.2f}",                   s_val),
+         Paragraph("SFR diseno", s_lbl), Paragraph(f"{sfr_d*100:.0f}%\n{n_domos} domos", s_val)],
+    ], colWidths=[2*cm, 4*cm, 1.2*cm, 1.5*cm, 1.5*cm, 1.5*cm, 2.5*cm, 3.0*cm])
     t_domo.setStyle(TableStyle([
-        ('FONTNAME',       (0,0),(0,-1), 'Helvetica-Bold'),
-        ('FONTNAME',       (2,0),(2,-1), 'Helvetica-Bold'),
-        ('FONTNAME',       (4,0),(4,-1), 'Helvetica-Bold'),
-        ('FONTNAME',       (6,0),(6,-1), 'Helvetica-Bold'),
         ('FONTSIZE',       (0,0),(-1,-1), 8),
-        ('TEXTCOLOR',      (0,0),(0,-1),  ECO_AZUL),
-        ('TEXTCOLOR',      (2,0),(2,-1),  ECO_AZUL),
-        ('TEXTCOLOR',      (4,0),(4,-1),  ECO_AZUL),
-        ('TEXTCOLOR',      (6,0),(6,-1),  ECO_AZUL),
         ('BACKGROUND',     (0,0),(-1,-1), ECO_CLARO),
-        ('TOPPADDING',     (0,0),(-1,-1), 6),
-        ('BOTTOMPADDING',  (0,0),(-1,-1), 6),
+        ('TOPPADDING',     (0,0),(-1,-1), 7),
+        ('BOTTOMPADDING',  (0,0),(-1,-1), 7),
         ('LEFTPADDING',    (0,0),(-1,-1), 6),
+        ('VALIGN',         (0,0),(-1,-1), 'TOP'),
         ('BOX',            (0,0),(-1,-1), 0.5, ECO_LINEA),
     ]))
     story.append(t_domo)
@@ -656,9 +653,9 @@ def generar_pdf(config, resultado, lead):
 
     sem_map = {
         "Subiluminado (<150 lux)":      "⚫ Subiluminado",
-        "Confort óptimo (ISO+IES)":      "🟢 Confort óptimo",
-        "Límite UDI-Autonomous":         "🟡 Límite UDI",
-        "Sobreiluminación UDI-Exceeded": "🔴 Sobreiluminación",
+        "Confort óptimo (ISO+IES)":      "Confort optimo",
+        "Límite UDI-Autonomous":         "Limite UDI",
+        "Sobreiluminación UDI-Exceeded": "Sobreiluminacion",
     }
     filas_t = [["SFR", "Domos", "Ah. Ilum.\nkWh/año", "Pen. Cool\nkWh/año",
                 "Neto\nkWh/año", "% Base", "Ilum.\nlux", "Semáforo\nNormativo"]]
