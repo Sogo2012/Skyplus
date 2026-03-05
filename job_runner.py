@@ -256,41 +256,51 @@ def fecha_es():
     return f"{h.day} de {MESES_ES[h.month-1]} de {h.year}"
 
 def _draw_header(canvas_obj, doc, eco_path, sun_path, seccion=""):
-    """Header ECO + Sunoptics que se dibuja en TODAS las páginas."""
-    from reportlab.lib.units import cm
+    """Header blanco ECO + Sunoptics en todas las páginas."""
     W, H = A4
     canvas_obj.saveState()
 
-    # Franja azul superior
-    canvas_obj.setFillColor(ECO_AZUL)
-    canvas_obj.rect(0, H - 2.2*cm, W, 2.2*cm, fill=1, stroke=0)
+    # Fondo blanco (sin franja azul)
+    canvas_obj.setFillColor(white)
+    canvas_obj.rect(0, H - 2.4*cm, W, 2.4*cm, fill=1, stroke=0)
 
-    # Logo ECO grande (blanco sobre azul)
+    # Línea azul superior (borde superior de página)
+    canvas_obj.setStrokeColor(ECO_AZUL)
+    canvas_obj.setLineWidth(4)
+    canvas_obj.line(0, H - 0.15*cm, W, H - 0.15*cm)
+
+    # Logo ECO — cuadrado 800x800, mostrar grande
     if os.path.exists(eco_path):
         canvas_obj.drawImage(
-            eco_path, 0.6*cm, H - 2.0*cm,
-            width=4.5*cm, height=1.7*cm,
+            eco_path, 0.5*cm, H - 2.2*cm,
+            width=2.0*cm, height=2.0*cm,
             preserveAspectRatio=True, mask='auto',
         )
 
-    # Logo Sunoptics derecha
+    # Nombre sección centrado en gris
+    if seccion:
+        canvas_obj.setFillColor(ECO_GRIS)
+        canvas_obj.setFont("Helvetica", 7)
+        canvas_obj.drawCentredString(W/2, H - 1.35*cm, seccion.upper())
+
+    # Logo Sunoptics — horizontal 377x134, aspect ratio 2.81:1
+    # Para misma altura visual que ECO (2cm) → ancho = 2cm * 2.81 = 5.6cm
     if os.path.exists(sun_path):
         canvas_obj.drawImage(
-            sun_path, W - 5.0*cm, H - 2.0*cm,
-            width=4.2*cm, height=1.6*cm,
+            sun_path, W - 6.0*cm, H - 2.1*cm,
+            width=5.6*cm, height=2.0*cm,
             preserveAspectRatio=True, mask='auto',
         )
-
-    # Sección centrada en header
-    if seccion:
-        canvas_obj.setFillColor(white)
-        canvas_obj.setFont("Helvetica", 7.5)
-        canvas_obj.drawCentredString(W/2, H - 1.3*cm, seccion.upper())
 
     # Línea verde bajo header
     canvas_obj.setStrokeColor(ECO_VERDE)
-    canvas_obj.setLineWidth(2.5)
-    canvas_obj.line(0, H - 2.2*cm, W, H - 2.2*cm)
+    canvas_obj.setLineWidth(2)
+    canvas_obj.line(0, H - 2.4*cm, W, H - 2.4*cm)
+
+    # Línea divisoria sutil en medio del header
+    canvas_obj.setStrokeColor(ECO_LINEA)
+    canvas_obj.setLineWidth(0.4)
+    canvas_obj.line(0.6*cm, H - 1.2*cm, W - 0.6*cm, H - 1.2*cm)
 
     # Footer
     canvas_obj.setFillColor(ECO_GRIS)
@@ -302,6 +312,13 @@ def _draw_header(canvas_obj, doc, eco_path, sun_path, seccion=""):
     canvas_obj.setStrokeColor(ECO_LINEA)
     canvas_obj.setLineWidth(0.5)
     canvas_obj.line(1.5*cm, 1.0*cm, W - 1.5*cm, 1.0*cm)
+
+    # Número de página
+    canvas_obj.setFillColor(ECO_GRIS)
+    canvas_obj.setFont("Helvetica", 7)
+    canvas_obj.drawRightString(W - 1.5*cm, 0.6*cm, f"Página {doc.page}")
+
+    canvas_obj.restoreState()
 
     # Número de página
     canvas_obj.setFillColor(ECO_GRIS)
@@ -335,6 +352,29 @@ def generar_pdf(config, resultado, lead):
     neto_opt = resultado.get("neto_opt", 0)
     pct_opt  = resultado.get("pct_opt", 0)
     df_curva = resultado.get("df_curva_raw", [])
+    fc_lux_list   = resultado.get("fc_lux",         [0]*len(df_curva))
+    sem_txt_list  = resultado.get("semaforo_txt",   [""]*len(df_curva))
+
+    # Calcular ahorros reales a partir de los datos crudos del motor
+    if df_curva:
+        base_r    = next((r for r in df_curva if r.get("sfr_pct") == 0), df_curva[0])
+        kwh_base_luz  = base_r.get("kwh_luz",     0)
+        kwh_base_cool = base_r.get("kwh_cooling", 0)
+        kwh_base_heat = base_r.get("kwh_heating", 0)
+        kwh_base_tot  = kwh_base_luz + kwh_base_cool + kwh_base_heat
+
+        for i, r in enumerate(df_curva):
+            ah_luz   = kwh_base_luz  - r.get("kwh_luz",     0)
+            pen_cool = r.get("kwh_cooling", 0) - kwh_base_cool
+            ah_heat  = kwh_base_heat - r.get("kwh_heating",  0)
+            neto     = ah_luz - pen_cool + ah_heat
+            pct_base = (neto / kwh_base_tot * 100) if kwh_base_tot else 0
+            r["ah_luz"]   = round(ah_luz)
+            r["pen_cool"] = round(pen_cool)
+            r["neto_kwh"] = round(neto)
+            r["pct_base"] = round(pct_base, 1)
+            r["fc_lux"]   = fc_lux_list[i]  if i < len(fc_lux_list)  else 0
+            r["semaforo"] = sem_txt_list[i]  if i < len(sem_txt_list) else ""
     recomend = resultado.get("recomendacion", "")
 
     # Limpiar markdown del texto de recomendación
@@ -342,7 +382,7 @@ def generar_pdf(config, resultado, lead):
     recomend_limpio = re.sub(r'\*\*(.+?)\*\*', r'\1', recomend)
     recomend_limpio = re.sub(r'\*(.+?)\*',   r'\1', recomend_limpio)
 
-    # Calcular ahorros reales del SFR óptimo dual
+    # Calcular valores del SFR óptimo dual para KPIs
     sfr_show  = sfr_dual or sfr_opt
     neto_dual = 0
     pct_dual  = 0
@@ -384,7 +424,7 @@ def generar_pdf(config, resultado, lead):
     s_disc      = s('DC', fontSize=7.5,textColor=ECO_GRIS,  leading=11, backColor=ECO_CLARO, borderPadding=6)
 
     secciones = [
-        "Portada",
+        "",                                    # Pág 1 — sin texto en portada
         "Modelo Geométrico",
         "Análisis Energético",
         "Confort Visual & Recomendación",
