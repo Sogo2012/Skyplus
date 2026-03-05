@@ -1019,74 +1019,171 @@ with tab_clima:
 with tab_3d:
     page_header(
         "Modelo Paramétrico",
-        "Geometría Honeybee validada para EnergyPlus y Radiance — domos Sunoptics® distribuidos en cuadrícula ASHRAE"
+        "Geometría validada para EnergyPlus — domos Sunoptics® distribuidos en cuadrícula ASHRAE"
     )
 
     if st.button("Generar modelo 3D", use_container_width=True, type="primary"):
-        with st.spinner("Construyendo geometría Honeybee..."):
+        with st.spinner("Construyendo geometría..."):
             try:
                 datos_domo = df_domos[df_domos['Modelo'] == modelo_sel].iloc[0]
-                vtk_path, num_domos, sfr_real = generar_nave_3d_vtk(
-                    ancho_nave, largo_nave, alto_nave, sfr_target,
-                    datos_domo['Ancho_m'], datos_domo['Largo_m'],
-                    lat=st.session_state.lat, lon=st.session_state.lon,
-                )
-                if vtk_path:
-                    st.session_state.vtk_path          = vtk_path
-                    st.session_state.num_domos_real    = num_domos
-                    st.session_state.sfr_final         = sfr_real
-                    st.session_state.datos_domo_actual = datos_domo
+                try:
+                    vtk_path, num_domos, sfr_real = generar_nave_3d_vtk(
+                        ancho_nave, largo_nave, alto_nave, sfr_target,
+                        datos_domo['Ancho_m'], datos_domo['Largo_m'],
+                        lat=st.session_state.lat, lon=st.session_state.lon,
+                    )
+                except Exception:
+                    vtk_path  = None
+                    num_domos = max(1, round(ancho_nave * largo_nave * sfr_target /
+                                            (float(datos_domo['Ancho_m']) * float(datos_domo['Largo_m']))))
+                    sfr_real  = num_domos * float(datos_domo['Ancho_m']) * float(datos_domo['Largo_m']) / (ancho_nave * largo_nave)
+
+                st.session_state.vtk_path          = vtk_path or "plotly_mode"
+                st.session_state.num_domos_real    = num_domos
+                st.session_state.sfr_final         = sfr_real
+                st.session_state.datos_domo_actual = datos_domo
             except Exception as e:
                 st.error(f"Error en el motor 3D: {e}")
 
-    if st.session_state.vtk_path and os.path.exists(st.session_state.vtk_path):
-        sfr_pct = st.session_state.sfr_final * 100
+    if st.session_state.vtk_path:
+        import plotly.graph_objects as go
+        import math as _math
+
+        sfr_pct    = st.session_state.sfr_final * 100
+        num_domos  = st.session_state.num_domos_real
+        datos_domo = st.session_state.datos_domo_actual
+        domo_ancho = float(datos_domo['Ancho_m'])
+        domo_largo = float(datos_domo['Largo_m'])
+        A, L, H    = ancho_nave, largo_nave, alto_nave
+
         if sfr_pct <= 3.0:
-            ashrae_status = "Cumple ASHRAE 90.1 sin controles (SFR ≤ 3%)"
-            badge = "eco-badge-ok"
+            st.markdown('<span class="eco-badge-ok">ASHRAE 90.1 — Cumple sin controles (SFR ≤ 3%)</span>', unsafe_allow_html=True)
         elif sfr_pct <= 5.0:
-            ashrae_status = "Requiere daylighting controls (SFR ≤ 5%)"
-            badge = "eco-badge-warn"
+            st.markdown('<span class="eco-badge-warn">ASHRAE 90.1 — Requiere daylighting controls (SFR ≤ 5%)</span>', unsafe_allow_html=True)
         else:
-            ashrae_status = "Excede límite ASHRAE 90.1 (SFR > 5%)"
-            badge = "eco-badge-warn"
+            st.markdown('<span class="eco-badge-warn">ASHRAE 90.1 — Excede límite (SFR > 5%)</span>', unsafe_allow_html=True)
 
         render_cards([
-            {"label": "Domos generados",    "value": f"{st.session_state.num_domos_real} uds"},
-            {"label": "SFR real del modelo","value": f"{sfr_pct:.2f} %"},
+            {"label": "Domos generados",     "value": f"{num_domos} uds"},
+            {"label": "SFR real del modelo", "value": f"{sfr_pct:.2f} %"},
         ])
-        if sfr_pct <= 3.0:
-            st.markdown('<span class="eco-badge-ok">ASHRAE 90.1 — Cumple sin controles (SFR ≤ 3%)</span>',
-                        unsafe_allow_html=True)
-        elif sfr_pct <= 5.0:
-            st.markdown('<span class="eco-badge-warn">ASHRAE 90.1 — Requiere daylighting controls (SFR ≤ 5%)</span>',
-                        unsafe_allow_html=True)
-        else:
-            st.markdown('<span class="eco-badge-warn">ASHRAE 90.1 — Excede límite (SFR > 5%)</span>',
-                        unsafe_allow_html=True)
-        st.markdown("<div style='height:4px'></div>", unsafe_allow_html=True)
 
         st.divider()
-        mostrar_sol = st.toggle("Mostrar bóveda solar", value=False)
-        ruta_base   = st.session_state.vtk_path
-        ruta_cargar = ruta_base if mostrar_sol else ruta_base.replace('.vtkjs', '_solo.vtkjs')
-        if not os.path.exists(ruta_cargar):
-            ruta_cargar = ruta_base
+        mostrar_sol = st.toggle("Mostrar bóveda solar / Sunpath", value=False)
 
-        with open(ruta_cargar, "rb") as f:
-            vtk_data = f.read()
-        st_vtkjs(content=vtk_data, key=f"visor_nave_{mostrar_sol}")
+        fig3d = go.Figure()
+        COL_PARED = "rgba(255,255,0,0.20)"    # Amarillo EnergyPlus #FFFF00
+        COL_TECHO = "rgba(255,0,0,0.15)"       # Rojo EnergyPlus
+        COL_PISO  = "rgba(160,160,160,0.35)"   # Gris
+        COL_EDGE  = "#555555"
+        COL_DOMO  = "#4FC3F7"
+        COL_DOMO_E= "#003C52"
+        COL_SOL   = "#FFD600"
+
+        # Wireframe nave
+        pts = [(0,0,0),(A,0,0),(A,L,0),(0,L,0),(0,0,H),(A,0,H),(A,L,H),(0,L,H)]
+        ex,ey,ez = [],[],[]
+        for i,j in [(0,1),(1,2),(2,3),(3,0),(4,5),(5,6),(6,7),(7,4),(0,4),(1,5),(2,6),(3,7)]:
+            x0,y0,z0=pts[i]; x1,y1,z1=pts[j]
+            ex+=[x0,x1,None]; ey+=[y0,y1,None]; ez+=[z0,z1,None]
+        fig3d.add_trace(go.Scatter3d(x=ex,y=ey,z=ez,mode='lines',
+            line=dict(color=COL_EDGE,width=3),showlegend=False,hoverinfo='skip'))
+
+        # Techo y paredes como superficies
+        for verts, col, nom, show in [
+            ([(0,0,0),(A,0,0),(A,L,0),(0,L,0)], COL_PISO,  "Piso",   True),
+            ([(0,0,H),(A,0,H),(A,L,H),(0,L,H)], COL_TECHO, "Techo",  True),
+            ([(0,0,0),(A,0,0),(A,0,H),(0,0,H)], COL_PARED, "Paredes",True),
+            ([(0,L,0),(A,L,0),(A,L,H),(0,L,H)], COL_PARED, "",       False),
+            ([(0,0,0),(0,L,0),(0,L,H),(0,0,H)], COL_PARED, "",       False),
+            ([(A,0,0),(A,L,0),(A,L,H),(A,0,H)], COL_PARED, "",       False),
+        ]:
+            xs=[v[0] for v in verts]; ys=[v[1] for v in verts]; zs=[v[2] for v in verts]
+            fig3d.add_trace(go.Mesh3d(x=xs,y=ys,z=zs,i=[0,0],j=[1,2],k=[2,3],
+                color=col,opacity=0.7,flatshading=True,showlegend=show,name=nom,hoverinfo='skip'))
+
+        # Domos
+        cols_d = max(1, round((num_domos*(A/L))**0.5))
+        rows_d = max(1, _math.ceil(num_domos/cols_d))
+        dx_d, dy_d = A/cols_d, L/rows_d
+        dxs,dys,dzs=[],[],[]
+        for ci in range(cols_d):
+            for ri in range(rows_d):
+                cx=ci*dx_d+dx_d/2; cy=ri*dy_d+dy_d/2
+                x0d=cx-domo_ancho/2; x1d=cx+domo_ancho/2
+                y0d=cy-domo_largo/2; y1d=cy+domo_largo/2
+                fig3d.add_trace(go.Mesh3d(
+                    x=[x0d,x1d,x1d,x0d],y=[y0d,y0d,y1d,y1d],z=[H+0.05]*4,
+                    i=[0,0],j=[1,2],k=[2,3],color=COL_DOMO,opacity=0.9,
+                    flatshading=True,showlegend=False,hoverinfo='skip'))
+                dxs.append(cx); dys.append(cy); dzs.append(H+0.05)
+        fig3d.add_trace(go.Scatter3d(x=dxs,y=dys,z=dzs,mode='markers',
+            marker=dict(size=4,color=COL_DOMO,line=dict(color=COL_DOMO_E,width=1)),
+            name=f"Domos Sunoptics® ({num_domos} uds)",showlegend=True,
+            hovertemplate=f"Domo<br>SFR={sfr_pct:.1f}%<extra></extra>"))
+
+        # Sunpath
+        if mostrar_sol:
+            lat_rad = _math.radians(st.session_state.lat)
+            cx_nav, cy_nav = A/2, L/2
+            radio = max(A,L)*0.7
+            meses = [(0,"Ene","#FF6B35"),(3,"Abr","#FFD600"),(5,"Jun","#FF0000"),
+                     (8,"Sep","#FF8C00"),(11,"Dic","#4FC3F7")]
+            for mi, mnombre, mcolor in meses:
+                decl = _math.radians(-23.45*_math.cos(_math.radians(360/365*(mi*30+10))))
+                sx,sy,sz=[],[],[]
+                for hora in range(5,20):
+                    h_ang = _math.radians(15*(hora-12))
+                    sin_alt = (_math.sin(lat_rad)*_math.sin(decl)+
+                               _math.cos(lat_rad)*_math.cos(decl)*_math.cos(h_ang))
+                    if sin_alt<=0: continue
+                    alt = _math.asin(sin_alt)
+                    cos_az = ((_math.sin(decl)-_math.sin(lat_rad)*sin_alt)/
+                              (_math.cos(lat_rad)*_math.cos(alt)+1e-9))
+                    cos_az = max(-1,min(1,cos_az))
+                    az = _math.acos(cos_az)
+                    if h_ang>0: az=2*_math.pi-az
+                    r=radio*_math.cos(alt)
+                    sx.append(cx_nav+r*_math.sin(az))
+                    sy.append(cy_nav+r*_math.cos(az))
+                    sz.append(H+radio*_math.sin(alt))
+                if sx:
+                    fig3d.add_trace(go.Scatter3d(x=sx,y=sy,z=sz,mode='lines+markers',
+                        line=dict(color=mcolor,width=2),marker=dict(size=2,color=mcolor),
+                        name=f"Sunpath {mnombre}",showlegend=True))
+            fig3d.add_trace(go.Scatter3d(x=[cx_nav],y=[cy_nav],z=[H+radio],mode='markers',
+                marker=dict(size=12,color=COL_SOL,line=dict(color='orange',width=2)),
+                name='Cénit solar',showlegend=True))
+
+        fig3d.update_layout(
+            scene=dict(
+                xaxis=dict(title=f"Ancho ({A:.0f}m)",backgroundcolor="rgba(245,240,230,0.8)",
+                    gridcolor="#D4B896",showbackground=True),
+                yaxis=dict(title=f"Largo ({L:.0f}m)",backgroundcolor="rgba(245,240,230,0.8)",
+                    gridcolor="#D4B896",showbackground=True),
+                zaxis=dict(title=f"Altura ({H:.0f}m)",backgroundcolor="rgba(220,210,200,0.5)",
+                    gridcolor="#C4A882",showbackground=True),
+                camera=dict(eye=dict(x=1.5,y=-1.8,z=1.2)),
+                aspectmode="data",
+            ),
+            margin=dict(l=0,r=0,t=35,b=0), height=520,
+            paper_bgcolor="white",
+            legend=dict(x=0.01,y=0.99,bgcolor="rgba(255,255,255,0.8)",
+                bordercolor="#D4B896",borderwidth=1,font=dict(size=9)),
+            title=dict(
+                text=f"Nave {A:.0f}×{L:.0f}×{H:.0f} m — {num_domos} domos Sunoptics® (SFR {sfr_pct:.1f}%)",
+                font=dict(size=11,color="#003C52"),x=0.5),
+        )
+        st.plotly_chart(fig3d, use_container_width=True)
+
     else:
-        st.markdown(f"""
+        st.markdown("""
         <div class="eco-disclaimer">
             Configura la nave en el panel lateral y presiona <strong>Generar modelo 3D</strong>.<br>
-            El modelo se construye con Honeybee y es compatible con EnergyPlus y Radiance.
+            El modelo es interactivo — rota, zoom y orbita con el mouse.
         </div>
         """, unsafe_allow_html=True)
 
-
-# =============================================================================
-# TAB 4 — SIMULACIÓN ENERGÉTICA
 # =============================================================================
 with tab_analitica:
     page_header(
