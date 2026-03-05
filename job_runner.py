@@ -267,10 +267,11 @@ def _draw_header(canvas_obj, doc, eco_path, sun_path, seccion=""):
         canvas_obj.setLineWidth(4)
         canvas_obj.line(0, H - 0.15*cm, W, H - 0.15*cm)
 
+        # Logo ECO — cuadrado 800x800, mostrar bien grande
         if os.path.exists(eco_path):
             canvas_obj.drawImage(
-                eco_path, 0.5*cm, H - 2.2*cm,
-                width=2.0*cm, height=2.0*cm,
+                eco_path, 0.4*cm, H - 2.3*cm,
+                width=2.8*cm, height=2.8*cm,
                 preserveAspectRatio=True, mask='auto',
             )
 
@@ -279,20 +280,17 @@ def _draw_header(canvas_obj, doc, eco_path, sun_path, seccion=""):
             canvas_obj.setFont("Helvetica", 7)
             canvas_obj.drawCentredString(W/2, H - 1.35*cm, seccion.upper())
 
+        # Logo Sunoptics — horizontal 377x134, reducido
         if os.path.exists(sun_path):
             canvas_obj.drawImage(
-                sun_path, W - 6.0*cm, H - 2.1*cm,
-                width=5.6*cm, height=2.0*cm,
+                sun_path, W - 4.5*cm, H - 1.9*cm,
+                width=4.0*cm, height=1.4*cm,
                 preserveAspectRatio=True, mask='auto',
             )
 
         canvas_obj.setStrokeColor(ECO_VERDE)
         canvas_obj.setLineWidth(2)
         canvas_obj.line(0, H - 2.4*cm, W, H - 2.4*cm)
-
-        canvas_obj.setStrokeColor(ECO_LINEA)
-        canvas_obj.setLineWidth(0.4)
-        canvas_obj.line(0.6*cm, H - 1.2*cm, W - 0.6*cm, H - 1.2*cm)
 
         canvas_obj.setFillColor(ECO_GRIS)
         canvas_obj.setFont("Helvetica", 6.5)
@@ -834,7 +832,7 @@ ingenieria@ecoconsultor.com"""
 # =============================================================================
 # REGISTRAR EN SHEETS
 # =============================================================================
-def registrar_sheets(lead, config):
+def registrar_sheets(lead, config, resultado=None):
     try:
         import google.auth
         from googleapiclient.discovery import build
@@ -845,6 +843,13 @@ def registrar_sheets(lead, config):
         service = build("sheets", "v4", credentials=creds, cache_discovery=False)
         sheet   = service.spreadsheets()
 
+        # Extraer KPIs del resultado si están disponibles
+        sfr_opt  = str(resultado.get("sfr_opt",  "")) if resultado else ""
+        sfr_dual = str(resultado.get("sfr_dual", "")) if resultado else ""
+        neto_opt = str(round(resultado.get("neto_opt", 0))) if resultado else ""
+        pct_opt  = str(round(resultado.get("pct_opt",  0), 1)) if resultado else ""
+        kwh_base = str(round(resultado.get("kwh_base", 0))) if resultado else ""
+
         fila = [[
             datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
             lead.get("correo","").strip().lower(),
@@ -853,12 +858,19 @@ def registrar_sheets(lead, config):
             lead.get("telefono",""),
             str(config.get("ancho","")),
             str(config.get("largo","")),
+            config.get("tipo_uso",""),
+            config.get("ciudad",""),
             lead.get("comentario",""),
+            sfr_opt,
+            sfr_dual,
+            neto_opt,
+            pct_opt,
+            kwh_base,
             "1",
         ]]
         sheet.values().append(
             spreadsheetId=SHEETS_ID,
-            range="Sheet1!A:I",
+            range="Sheet1!A:P",
             valueInputOption="USER_ENTERED",
             insertDataOption="INSERT_ROWS",
             body={"values": fila},
@@ -982,7 +994,7 @@ if __name__ == "__main__":
         logger.warning("Correo no enviado — continuando...")
 
     # Sheets
-    registrar_sheets(lead, config)
+    registrar_sheets(lead, config, resultado)
 
     logger.info("=== Cloud Run Job completado exitosamente ===")
     sys.exit(0)
