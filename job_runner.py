@@ -852,25 +852,44 @@ def registrar_sheets(lead, config, resultado=None):
         import google.auth
         import google.auth.transport.requests
         from googleapiclient.discovery import build
+        import googleapiclient.errors
 
-        logger.info(f"Intentando registrar en Sheets ID: {SHEETS_ID}")
+        logger.info(f"[SHEETS] Iniciando registro — SHEETS_ID: '{SHEETS_ID}'")
 
         if not SHEETS_ID:
-            logger.error("SHEETS_ID vacío — variable de entorno no configurada")
+            logger.error("[SHEETS] ERROR: SHEETS_ID vacío — variable de entorno no configurada")
             return
 
-        # Autenticación via ADC (Application Default Credentials)
-        creds, project = google.auth.default(
-            scopes=["https://www.googleapis.com/auth/spreadsheets"]
-        )
-        logger.info(f"Credenciales obtenidas — proyecto: {project}")
+        # Autenticación via ADC
+        try:
+            creds, project = google.auth.default(
+                scopes=["https://www.googleapis.com/auth/spreadsheets"]
+            )
+            logger.info(f"[SHEETS] Credenciales OK — proyecto: {project} | tipo: {type(creds).__name__}")
+        except Exception as e:
+            logger.error(f"[SHEETS] Fallo ADC: {e}")
+            return
 
-        # Refrescar token explícitamente
-        request = google.auth.transport.requests.Request()
-        creds.refresh(request)
-        logger.info("Token refrescado correctamente")
+        # Refrescar token
+        try:
+            request_obj = google.auth.transport.requests.Request()
+            creds.refresh(request_obj)
+            logger.info(f"[SHEETS] Token refrescado — expira: {creds.expiry}")
+        except Exception as e:
+            logger.error(f"[SHEETS] Fallo refresh token: {e}")
+            return
 
         service = build("sheets", "v4", credentials=creds, cache_discovery=False)
+
+        # Detectar nombre real de la primera pestaña
+        try:
+            meta = service.spreadsheets().get(spreadsheetId=SHEETS_ID).execute()
+            sheet_title = meta.get('properties', {}).get('title', '?')
+            first_sheet = meta['sheets'][0]['properties']['title']
+            logger.info(f"[SHEETS] Acceso OK — documento: '{sheet_title}' | primera pestaña: '{first_sheet}'")
+        except googleapiclient.errors.HttpError as e:
+            logger.error(f"[SHEETS] Sin acceso: HTTP {e.resp.status} — {e.error_details}")
+            return
 
         # Extraer KPIs del resultado
         sfr_opt  = str(resultado.get("sfr_opt",  "")) if resultado else ""
@@ -902,7 +921,7 @@ def registrar_sheets(lead, config, resultado=None):
 
         response = service.spreadsheets().values().append(
             spreadsheetId=SHEETS_ID,
-            range="Sheet1!A:P",
+            range=f"{first_sheet}!A:P",
             valueInputOption="USER_ENTERED",
             insertDataOption="INSERT_ROWS",
             body={"values": fila},
