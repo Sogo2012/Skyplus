@@ -14,7 +14,7 @@ import folium
 import plotly.graph_objects as go
 import plotly.express as px
 from streamlit_folium import st_folium
-from streamlit_vtkjs import st_vtkjs
+# streamlit_vtkjs removido — reemplazado por Plotly 3D
 
 # Módulos locales
 from geometry_utils import generar_nave_3d_vtk
@@ -654,17 +654,22 @@ with st.sidebar:
         if st.button("Buscar por nombre", use_container_width=True):
             if search_name:
                 from geopy.geocoders import Nominatim
+                from geopy.exc import GeocoderTimedOut, GeocoderServiceError
                 try:
-                    geo = Nominatim(user_agent="skyplus_buscador")
-                    loc = geo.geocode(search_name)
+                    geo = Nominatim(user_agent="skyplus_ecoconsultor_v2", timeout=10)
+                    loc = geo.geocode(search_name, language="es")
                     if loc:
                         st.session_state.lat = loc.latitude
                         st.session_state.lon = loc.longitude
                         buscar_estaciones()
                     else:
-                        st.error("No se pudo localizar ese lugar.")
-                except Exception:
-                    st.error("Error al conectar con el geocodificador.")
+                        st.error("No se pudo localizar ese lugar. Intenta con el nombre en inglés o usa coordenadas.")
+                except GeocoderTimedOut:
+                    st.error("Timeout al conectar con el geocodificador. Intenta de nuevo o ingresa las coordenadas manualmente.")
+                except GeocoderServiceError as e:
+                    st.error(f"Servicio de geocodificación no disponible: {e}. Usa las coordenadas manualmente.")
+                except Exception as e:
+                    st.error(f"Error inesperado: {type(e).__name__}: {e}")
 
         st.divider()
         st.session_state.lat = st.number_input("Latitud",  value=st.session_state.lat,  format="%.4f")
