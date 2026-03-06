@@ -649,6 +649,12 @@ for key, val in _defaults.items():
 _L = st.session_state.get("lang",  "ES")
 _U = st.session_state.get("units", "metric")
 
+# Dimensiones — se leen desde session_state donde el sidebar las guardó
+# None si el sidebar aún no las ha asignado (guard abajo previene uso prematuro)
+_ancho_usr = st.session_state.get("_ancho_usr")
+_largo_usr = st.session_state.get("_largo_usr")
+_alto_usr  = st.session_state.get("_alto_usr")
+
 
 def buscar_estaciones():
     with st.spinner(T("spinner_climate", _L)):
@@ -803,11 +809,6 @@ with st.sidebar:
 
     # Rangos en unidades del usuario (ft si imperial, m si métrico)
     _FT2M = 1 / CONVERSION["m_to_ft"]   # 0.3048 — solo se usa internamente
-
-    # Defaults seguros — se sobreescriben por st.number_input abajo
-    _ancho_usr = 50.0
-    _largo_usr = 100.0
-    _alto_usr  = 8.0
 
     if _U == "imperial":
         _w_min, _w_max, _w_def, _w_step = 33.0,  460.0, 164.0, 1.0
@@ -1452,6 +1453,11 @@ with tab_analitica:
                 status_box.caption(f"{mensaje}")
                 if paso < len(facts):
                     fact_box.info(facts[paso % len(facts)])
+
+            # Guard — verificar que el sidebar ya asignó dimensiones reales
+            if not st.session_state.get("_ancho_nave"):
+                st.error(T("err_no_geometry", _L))
+                st.stop()
 
             try:
                 config = configurar_proyecto(
