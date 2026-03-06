@@ -785,6 +785,12 @@ with st.sidebar:
 
     # Rangos en unidades del usuario (ft si imperial, m si métrico)
     _FT2M = 1 / CONVERSION["m_to_ft"]   # 0.3048 — solo se usa internamente
+
+    # Defaults seguros — se sobreescriben en el if/else siguiente
+    _ancho_usr: float = 50.0
+    _largo_usr: float = 100.0
+    _alto_usr:  float = 8.0
+
     if _U == "imperial":
         _w_min, _w_max, _w_def, _w_step = 33.0,  460.0, 164.0, 1.0
         _l_min, _l_max, _l_def, _l_step = 33.0,  460.0, 328.0, 1.0
