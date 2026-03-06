@@ -389,6 +389,92 @@ STRINGS = {
     "length_label":  {"ES": "Largo",   "EN": "Length"},
     "height_label":  {"ES": "Altura",  "EN": "Height"},
 
+
+    # ── CLIMATE CHARTS ───────────────────────────────────────────────────
+    "rad_direct":    {"ES": "Radiación directa",        "EN": "Direct radiation"},
+    "rad_diffuse":   {"ES": "Radiación difusa",         "EN": "Diffuse radiation"},
+    "hour_of_day":   {"ES": "Hora del día",             "EN": "Hour of day"},
+    "sky_cover_pct": {"ES": "% Cielo cubierto",         "EN": "% Sky cover"},
+    "elevation":     {"ES": "Elevación",                "EN": "Elevation"},
+    "cdd_label":     {"ES": "Grados día refrigeración (CDD)", "EN": "Cooling Degree Days (CDD)"},
+    "hdd_label":     {"ES": "Grados día calefacción (HDD)",   "EN": "Heating Degree Days (HDD)"},
+    "cdd_delta":     {"ES": "Demanda A/C anual",        "EN": "Annual cooling demand"},
+    "hdd_delta":     {"ES": "Demanda calefacción",      "EN": "Heating demand"},
+
+    # ── 3D LEGEND ────────────────────────────────────────────────────────
+    "floor_3d":      {"ES": "Piso",    "EN": "Floor"},
+    "roof_3d":       {"ES": "Techo",   "EN": "Roof"},
+    "walls_3d":      {"ES": "Paredes", "EN": "Walls"},
+    "solar_zenith":  {"ES": "Cénit solar", "EN": "Solar zenith"},
+
+    # ── 3D PROMPT ────────────────────────────────────────────────────────
+    "configure_prompt": {
+        "ES": "Configura la nave en el panel lateral y presiona <strong>Generar modelo 3D</strong>.<br>El modelo es interactivo — rota, zoom y orbita con el mouse.",
+        "EN": "Configure the facility in the side panel and press <strong>Generate 3D model</strong>.<br>The model is interactive — rotate, zoom and orbit with your mouse.",
+    },
+
+    # ── SIMULATION PROMPT ────────────────────────────────────────────────
+    "compare_prompt": {
+        "ES": "Compara tu nave <strong>sin domos vs con SFR={sfr}%</strong>.<br>2 simulaciones EnergyPlus · estimado <strong>2–4 minutos</strong>.",
+        "EN": "Compare your facility <strong>without skylights vs SFR={sfr}%</strong>.<br>2 EnergyPlus simulations · estimated <strong>2–4 minutes</strong>.",
+    },
+
+    # ── STATUS CARDS ─────────────────────────────────────────────────────
+    "status_label":      {"ES": "Estado",             "EN": "Status"},
+    "simulating_cloud":  {"ES": "Simulando en nube",  "EN": "Running in cloud"},
+
+    # ── FACTS (agregar faltante) ──────────────────────────────────────────
+    "fact_lighting": {
+        "ES": "La iluminación representa hasta el 40% del consumo eléctrico en bodegas industriales.",
+        "EN": "Lighting accounts for up to 40% of electricity use in industrial warehouses.",
+    },
+
+
+    # ── SPINNERS & PROGRESS ──────────────────────────────────────────────
+    "spinner_climate":   {"ES": "Consultando base de datos climática...",  "EN": "Querying climate database..."},
+    "spinner_epw":       {"ES": "Descargando archivo EPW...",              "EN": "Downloading EPW file..."},
+    "spinner_3d":        {"ES": "Construyendo geometría...",               "EN": "Building geometry..."},
+    "spinner_prep":      {"ES": "Preparando análisis...",                  "EN": "Preparing analysis..."},
+    "spinner_opt":       {"ES": "Optimizando simulación...",               "EN": "Optimizing simulation..."},
+    "spinner_motor":     {"ES": "Preparando motor...",                     "EN": "Starting engine..."},
+
+    # ── SIMULATION RESULTS ───────────────────────────────────────────────
+    "skylights_sfr_label": {"ES": "Domos instalados — SFR {sfr}%",        "EN": "Skylights installed — SFR {sfr}%"},
+    "units_count":         {"ES": "uds",                                   "EN": "units"},
+    "ashrae_ref":          {"ES": "Referencia ASHRAE",                     "EN": "ASHRAE baseline"},
+    "pct_above_base":      {"ES": "{pct}% sobre caso base",               "EN": "{pct}% above baseline"},
+
+    # ── HEATMAP ──────────────────────────────────────────────────────────
+    "temp_colorbar":     {"ES": "°C",  "EN": "°F"},
+    "heatmap_hover_es":  {"ES": "Día {x} · Hora {y}:00 · {z:.1f} °C",    "EN": "Day {x} · Hour {y}:00 · {z:.1f} °F"},
+
+    # ── 3D SUNPATH ───────────────────────────────────────────────────────
+    "sunpath_toggle":    {"ES": "Mostrar bóveda solar / Sunpath",          "EN": "Show solar arc / Sunpath"},
+    "solar_zenith":      {"ES": "Cénit solar",                             "EN": "Solar zenith"},
+
+    # ── LEAD FORM INLINE TEXT ────────────────────────────────────────────
+    "lead_subtitle_wait": {"ES": "Recibirás el reporte técnico PDF en tu correo en aproximadamente",
+                           "EN": "You will receive the technical PDF report by email in approximately"},
+    "minutes":            {"ES": "minutos",   "EN": "minutes"},
+
+    # ── PROCESSING BANNER ────────────────────────────────────────────────
+    "processing_mins_tmpl": {
+        "ES": "Estamos calculando la curva de optimización completa (SFR 0%→6%) para tu nave. "
+              "Recibirás el PDF en tu correo en aproximadamente <strong>{mins} minutos</strong>.",
+        "EN": "We are computing the full optimization curve (SFR 0%→6%) for your facility. "
+              "You will receive the PDF by email in approximately <strong>{mins} minutes</strong>."},
+
+    # ── HEATMAP TEMP UNITS ───────────────────────────────────────────────
+    "temp_unit":          {"ES": "°C",  "EN": "°F"},
+
+
+    "report_to_email":   {"ES": "El reporte técnico PDF llegará a",        "EN": "The technical PDF report will be sent to"},
+    "can_close_window":  {"ES": "Puedes cerrar esta ventana — el análisis continuará en la nube.",
+                          "EN": "You can close this window — the analysis will continue in the cloud."},
+    "processing_body_tmpl": {
+        "ES": "Estamos calculando la curva de optimización completa (SFR 0%→6%) para <strong>{empresa}</strong>.<br>El reporte técnico PDF llegará a <strong>{correo}</strong> en aproximadamente <strong>{mins} minutos</strong>.<br><br>Puedes cerrar esta ventana — el análisis continuará en la nube.",
+        "EN": "We are computing the full optimization curve (SFR 0%→6%) for <strong>{empresa}</strong>.<br>The technical PDF report will be sent to <strong>{correo}</strong> in approximately <strong>{mins} minutes</strong>.<br><br>You can close this window — the analysis will continue in the cloud."},
+
     # ── LANGUAGE SELECTOR ────────────────────────────────────────────────────
     "lang_selector":     {"ES": "Idioma / Language",                   "EN": "Idioma / Language"},
     "units_selector":    {"ES": "Sistema de unidades",                 "EN": "Unit system"},
