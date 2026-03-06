@@ -43,10 +43,6 @@ def verificar_cuota(correo):
 GCS_BUCKET = "skyplus-epw-linen-rex"
 
 def upload_epw_to_gcs(local_path, correo):
-    """
-    Sube el EPW local a GCS y retorna la URI gs://.
-    Retorna None si falla — el job no se lanza.
-    """
     try:
         from google.cloud import storage
         import hashlib, os
@@ -65,11 +61,6 @@ def upload_epw_to_gcs(local_path, correo):
         return None
 
 def lanzar_cloud_run_job(config, lead, sql_base=None):
-    """
-    Lanza skyplus-job via Cloud Run Jobs API.
-    Inyecta JOB_CONFIG como variable de entorno con el payload JSON.
-    Retorna (ok: bool, mensaje: str).
-    """
     import json
     try:
         import google.auth
@@ -127,13 +118,13 @@ def lanzar_cloud_run_job(config, lead, sql_base=None):
 # =============================================================================
 # PALETA ECO — Libro de Marca
 # =============================================================================
-ECO_AZUL    = "#003C52"   # Pantone 309C — Conservación del ambiente
-ECO_VERDE   = "#4A7C2F"   # Pantone 575C — Confort y ahorro energético
-ECO_GRIS    = "#4A5568"   # Pantone 432C — Obra gris / construcción
-ECO_AZUL_LT = "#E8F0F3"   # Fondo sutil derivado del azul corporativo
-ECO_VERDE_LT= "#EBF5E1"   # Fondo sutil derivado del verde corporativo
-ECO_GRIS_LT = "#F4F5F6"   # Background general
-ECO_LINEA   = "#CBD5E0"   # Separadores y bordes
+ECO_AZUL    = "#003C52"
+ECO_VERDE   = "#4A7C2F"
+ECO_GRIS    = "#4A5568"
+ECO_AZUL_LT = "#E8F0F3"
+ECO_VERDE_LT= "#EBF5E1"
+ECO_GRIS_LT = "#F4F5F6"
+ECO_LINEA   = "#CBD5E0"
 
 # =============================================================================
 # 1. CONFIGURACIÓN DE PÁGINA
@@ -146,347 +137,67 @@ st.set_page_config(
 
 st.markdown(f"""
     <style>
-    /* ── Reset y base ───────────────────────────────────────────────── */
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
-
-    html, body, [class*="css"] {{
-        font-family: 'Inter', sans-serif;
-    }}
-
-    .main {{
-        background-color: {ECO_GRIS_LT};
-    }}
-
-    /* ── Header de app ──────────────────────────────────────────────── */
-    header[data-testid="stHeader"] {{
-        background-color: {ECO_AZUL};
-    }}
-
-    /* ── Sidebar ────────────────────────────────────────────────────── */
-    [data-testid="stSidebar"] {{
-        background-color: #FFFFFF;
-        border-right: 1px solid {ECO_LINEA};
-    }}
-
-    /* ── Sidebar collapse arrow — gris claro sobre fondo verde ──────── */
-    [data-testid="stSidebarCollapsedControl"] {{
-        background-color: {ECO_AZUL} !important;
-    }}
-    [data-testid="stSidebarCollapsedControl"] button {{
-        background-color: transparent !important;
-        border: none !important;
-    }}
+    html, body, [class*="css"] {{ font-family: 'Inter', sans-serif; }}
+    .main {{ background-color: {ECO_GRIS_LT}; }}
+    header[data-testid="stHeader"] {{ background-color: {ECO_AZUL}; }}
+    [data-testid="stSidebar"] {{ background-color: #FFFFFF; border-right: 1px solid {ECO_LINEA}; }}
+    [data-testid="stSidebarCollapsedControl"] {{ background-color: {ECO_AZUL} !important; }}
+    [data-testid="stSidebarCollapsedControl"] button {{ background-color: transparent !important; border: none !important; }}
     [data-testid="stSidebarCollapsedControl"] button svg,
-    [data-testid="stSidebarCollapsedControl"] button svg path {{
-        stroke: #F0F2F6 !important;
-        fill: #F0F2F6 !important;
-        color: #F0F2F6 !important;
-    }}
-    /* Chevron en header cuando sidebar está abierto */
+    [data-testid="stSidebarCollapsedControl"] button svg path {{ stroke: #F0F2F6 !important; fill: #F0F2F6 !important; color: #F0F2F6 !important; }}
     [data-testid="stSidebarContent"] button[kind="header"] svg,
-    button[data-testid="baseButton-header"] svg {{
-        stroke: #F0F2F6 !important;
-        color: #F0F2F6 !important;
-    }}
-
-    [data-testid="stSidebar"] label,
-    [data-testid="stSidebar"] .stMarkdown p {{
-        color: {ECO_GRIS};
-        font-size: 0.82rem;
-    }}
-
-    /* ── Tabs ───────────────────────────────────────────────────────── */
-    .stTabs [data-baseweb="tab-list"] {{
-        gap: 0;
-        border-bottom: 2px solid {ECO_LINEA};
-        background-color: white;
-    }}
-
-    .stTabs [data-baseweb="tab"] {{
-        height: 40px;
-        padding: 0 20px;
-        font-size: 0.82rem;
-        font-weight: 500;
-        letter-spacing: 0.03em;
-        text-transform: uppercase;
-        color: {ECO_GRIS};
-        border: none;
-        background: transparent;
-    }}
-
-    .stTabs [aria-selected="true"] {{
-        color: {ECO_AZUL} !important;
-        border-bottom: 2px solid {ECO_AZUL} !important;
-        background: transparent !important;
-        font-weight: 600;
-    }}
-
-    /* ── Botones principales ─────────────────────────────────────────── */
-    .stButton > button[kind="primary"] {{
-        background-color: {ECO_AZUL};
-        color: white;
-        border: none;
-        border-radius: 3px;
-        font-size: 0.85rem;
-        font-weight: 600;
-        letter-spacing: 0.05em;
-        text-transform: uppercase;
-        padding: 0.65em 1.5em;
-        transition: background 0.2s;
-    }}
-    .stButton > button[kind="primary"]:hover {{
-        background-color: #005070;
-    }}
-    .stButton > button:not([kind="primary"]) {{
-        background-color: white;
-        color: {ECO_AZUL};
-        border: 1px solid {ECO_AZUL};
-        border-radius: 3px;
-        font-size: 0.82rem;
-        font-weight: 500;
-    }}
-
-    /* ── Métricas nativas — ocultar para usar cards custom ──────────── */
-    [data-testid="stMetricValue"] {{
-        font-size: 1.5rem !important;
-        font-weight: 600 !important;
-        color: {ECO_AZUL} !important;
-    }}
-    [data-testid="stMetricLabel"] {{
-        font-size: 0.72rem !important;
-        font-weight: 500 !important;
-        text-transform: uppercase;
-        letter-spacing: 0.06em;
-        color: {ECO_GRIS} !important;
-    }}
-    [data-testid="stMetricDelta"] {{
-        font-size: 0.75rem !important;
-        color: {ECO_VERDE} !important;
-    }}
-
-    /* ── Cards de resultado ─────────────────────────────────────────── */
-    .eco-card {{
-        background: white;
-        border-radius: 4px;
-        border: 1px solid {ECO_LINEA};
-        border-left: 3px solid {ECO_AZUL};
-        padding: 12px 14px;
-        margin-bottom: 8px;
-        min-width: 0;
-        box-sizing: border-box;
-        height: 100%;
-    }}
-    .eco-card-label {{
-        font-size: 0.63rem;
-        font-weight: 600;
-        text-transform: uppercase;
-        letter-spacing: 0.07em;
-        color: {ECO_GRIS};
-        margin-bottom: 5px;
-        white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
-    }}
-    .eco-card-value {{
-        font-size: clamp(0.85rem, 2vw, 1.3rem);
-        font-weight: 700;
-        color: {ECO_AZUL};
-        line-height: 1.2;
-        word-break: break-word;
-        overflow-wrap: break-word;
-    }}
-    .eco-card-delta {{
-        font-size: 0.67rem;
-        color: {ECO_VERDE};
-        margin-top: 4px;
-        font-weight: 500;
-        word-break: break-word;
-    }}
-    .eco-card-green {{
-        border-left-color: {ECO_VERDE};
-    }}
-    .eco-card-green .eco-card-value {{
-        color: {ECO_VERDE};
-    }}
-    /* Cards compactas para resumen del proyecto */
-    .eco-card-sm .eco-card-value {{
-        font-size: clamp(0.75rem, 1.5vw, 1.05rem);
-    }}
-    .eco-card-sm .eco-card-label {{
-        font-size: 0.58rem;
-    }}
-
-    /* ── Section headers ────────────────────────────────────────────── */
-    .eco-section-title {{
-        font-size: 0.72rem;
-        font-weight: 700;
-        text-transform: uppercase;
-        letter-spacing: 0.1em;
-        color: {ECO_GRIS};
-        border-bottom: 1px solid {ECO_LINEA};
-        padding-bottom: 6px;
-        margin-bottom: 14px;
-        margin-top: 4px;
-    }}
-
-    /* ── Page title ─────────────────────────────────────────────────── */
-    .eco-page-title {{
-        font-size: 1.25rem;
-        font-weight: 700;
-        color: {ECO_AZUL};
-        letter-spacing: -0.01em;
-    }}
-    .eco-page-subtitle {{
-        font-size: 0.78rem;
-        color: {ECO_GRIS};
-        margin-top: 2px;
-    }}
-
-    /* ── Sidebar brand header ───────────────────────────────────────── */
-    .eco-brand {{
-        background: {ECO_AZUL};
-        margin: -1rem -1rem 1.2rem -1rem;
-        padding: 0;
-        border-bottom: 3px solid {ECO_VERDE};
-    }}
-    /* Zona blanca solo para el logo */
-    .eco-brand-logo-zone {{
-        background: #FFFFFF;
-        padding: 12px 20px 10px 20px;
-        border-bottom: 1px solid {ECO_LINEA};
-    }}
-    /* Zona azul para el texto SkyPlus */
-    .eco-brand-text-zone {{
-        padding: 10px 20px 12px 20px;
-    }}
-    /* ── Logo ECO — sin filtro ───────────────────────────────────────── */
-    .eco-logo-wrap {{
-        max-width: 160px;
-        margin-bottom: 0;
-    }}
-    .eco-logo-wrap img {{
-        max-width: 100% !important;
-        height: auto !important;
-    }}
-    /* ── Logo Sunoptics — fondo blanco ──────────────────────────────── */
-    .eco-sunoptics-logo-wrap {{
-        max-width: 140px;
-        margin: 0 auto 4px 0;
-    }}
-    .eco-sunoptics-logo-wrap img {{
-        width: 100% !important;
-        height: auto !important;
-    }}
-    .eco-brand-name {{
-        font-size: 1.1rem;
-        font-weight: 700;
-        color: white;
-        letter-spacing: 0.05em;
-    }}
-    .eco-brand-sub, .eco-brand-sub-dark {{
-        font-size: 0.68rem;
-        color: rgba(255,255,255,0.65);
-        letter-spacing: 0.04em;
-        margin-top: 1px;
-    }}
-    .eco-brand-product, .eco-brand-product-dark {{
-        font-size: 0.7rem;
-        font-weight: 600;
-        color: {ECO_VERDE};
-        letter-spacing: 0.12em;
-        text-transform: uppercase;
-        margin-top: 6px;
-    }}
-
-    /* ── Sidebar section labels ─────────────────────────────────────── */
-    .eco-sidebar-section {{
-        font-size: 0.65rem;
-        font-weight: 700;
-        text-transform: uppercase;
-        letter-spacing: 0.1em;
-        color: {ECO_GRIS};
-        background: {ECO_GRIS_LT};
-        border-left: 2px solid {ECO_AZUL};
-        padding: 5px 8px;
-        margin: 14px 0 8px 0;
-    }}
-
-    /* ── Status badges ──────────────────────────────────────────────── */
-    .eco-badge-ok {{
-        display: inline-block;
-        background: {ECO_VERDE_LT};
-        color: {ECO_VERDE};
-        border: 1px solid {ECO_VERDE};
-        border-radius: 2px;
-        font-size: 0.65rem;
-        font-weight: 600;
-        letter-spacing: 0.05em;
-        padding: 2px 7px;
-        text-transform: uppercase;
-    }}
-    .eco-badge-warn {{
-        display: inline-block;
-        background: #FFF8E1;
-        color: #B7791F;
-        border: 1px solid #F6AD55;
-        border-radius: 2px;
-        font-size: 0.65rem;
-        font-weight: 600;
-        padding: 2px 7px;
-        text-transform: uppercase;
-    }}
-    .eco-badge-info {{
-        display: inline-block;
-        background: {ECO_AZUL_LT};
-        color: {ECO_AZUL};
-        border: 1px solid #90B8C8;
-        border-radius: 2px;
-        font-size: 0.65rem;
-        font-weight: 600;
-        padding: 2px 7px;
-        text-transform: uppercase;
-    }}
-
-    /* ── Disclaimer técnico ─────────────────────────────────────────── */
-    .eco-disclaimer {{
-        background: {ECO_AZUL_LT};
-        border-left: 3px solid {ECO_AZUL};
-        border-radius: 2px;
-        padding: 10px 14px;
-        font-size: 0.75rem;
-        color: {ECO_GRIS};
-        line-height: 1.5;
-    }}
-
-    /* ── Ocultar branding de terceros ───────────────────────────────── */
+    button[data-testid="baseButton-header"] svg {{ stroke: #F0F2F6 !important; color: #F0F2F6 !important; }}
+    [data-testid="stSidebar"] label, [data-testid="stSidebar"] .stMarkdown p {{ color: {ECO_GRIS}; font-size: 0.82rem; }}
+    .stTabs [data-baseweb="tab-list"] {{ gap: 0; border-bottom: 2px solid {ECO_LINEA}; background-color: white; }}
+    .stTabs [data-baseweb="tab"] {{ height: 40px; padding: 0 20px; font-size: 0.82rem; font-weight: 500; letter-spacing: 0.03em; text-transform: uppercase; color: {ECO_GRIS}; border: none; background: transparent; }}
+    .stTabs [aria-selected="true"] {{ color: {ECO_AZUL} !important; border-bottom: 2px solid {ECO_AZUL} !important; background: transparent !important; font-weight: 600; }}
+    .stButton > button[kind="primary"] {{ background-color: {ECO_AZUL}; color: white; border: none; border-radius: 3px; font-size: 0.85rem; font-weight: 600; letter-spacing: 0.05em; text-transform: uppercase; padding: 0.65em 1.5em; transition: background 0.2s; }}
+    .stButton > button[kind="primary"]:hover {{ background-color: #005070; }}
+    .stButton > button:not([kind="primary"]) {{ background-color: white; color: {ECO_AZUL}; border: 1px solid {ECO_AZUL}; border-radius: 3px; font-size: 0.82rem; font-weight: 500; }}
+    [data-testid="stMetricValue"] {{ font-size: 1.5rem !important; font-weight: 600 !important; color: {ECO_AZUL} !important; }}
+    [data-testid="stMetricLabel"] {{ font-size: 0.72rem !important; font-weight: 500 !important; text-transform: uppercase; letter-spacing: 0.06em; color: {ECO_GRIS} !important; }}
+    [data-testid="stMetricDelta"] {{ font-size: 0.75rem !important; color: {ECO_VERDE} !important; }}
+    .eco-card {{ background: white; border-radius: 4px; border: 1px solid {ECO_LINEA}; border-left: 3px solid {ECO_AZUL}; padding: 12px 14px; margin-bottom: 8px; min-width: 0; box-sizing: border-box; height: 100%; }}
+    .eco-card-label {{ font-size: 0.63rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.07em; color: {ECO_GRIS}; margin-bottom: 5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }}
+    .eco-card-value {{ font-size: clamp(0.85rem, 2vw, 1.3rem); font-weight: 700; color: {ECO_AZUL}; line-height: 1.2; word-break: break-word; overflow-wrap: break-word; }}
+    .eco-card-delta {{ font-size: 0.67rem; color: {ECO_VERDE}; margin-top: 4px; font-weight: 500; word-break: break-word; }}
+    .eco-card-green {{ border-left-color: {ECO_VERDE}; }}
+    .eco-card-green .eco-card-value {{ color: {ECO_VERDE}; }}
+    .eco-card-sm .eco-card-value {{ font-size: clamp(0.75rem, 1.5vw, 1.05rem); }}
+    .eco-card-sm .eco-card-label {{ font-size: 0.58rem; }}
+    .eco-section-title {{ font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em; color: {ECO_GRIS}; border-bottom: 1px solid {ECO_LINEA}; padding-bottom: 6px; margin-bottom: 14px; margin-top: 4px; }}
+    .eco-page-title {{ font-size: 1.25rem; font-weight: 700; color: {ECO_AZUL}; letter-spacing: -0.01em; }}
+    .eco-page-subtitle {{ font-size: 0.78rem; color: {ECO_GRIS}; margin-top: 2px; }}
+    .eco-brand {{ background: {ECO_AZUL}; margin: -1rem -1rem 1.2rem -1rem; padding: 0; border-bottom: 3px solid {ECO_VERDE}; }}
+    .eco-brand-logo-zone {{ background: #FFFFFF; padding: 12px 20px 10px 20px; border-bottom: 1px solid {ECO_LINEA}; }}
+    .eco-brand-text-zone {{ padding: 10px 20px 12px 20px; }}
+    .eco-logo-wrap {{ max-width: 160px; margin-bottom: 0; }}
+    .eco-logo-wrap img {{ max-width: 100% !important; height: auto !important; }}
+    .eco-sunoptics-logo-wrap {{ max-width: 140px; margin: 0 auto 4px 0; }}
+    .eco-sunoptics-logo-wrap img {{ width: 100% !important; height: auto !important; }}
+    .eco-brand-name {{ font-size: 1.1rem; font-weight: 700; color: white; letter-spacing: 0.05em; }}
+    .eco-brand-sub, .eco-brand-sub-dark {{ font-size: 0.68rem; color: rgba(255,255,255,0.65); letter-spacing: 0.04em; margin-top: 1px; }}
+    .eco-brand-product, .eco-brand-product-dark {{ font-size: 0.7rem; font-weight: 600; color: {ECO_VERDE}; letter-spacing: 0.12em; text-transform: uppercase; margin-top: 6px; }}
+    .eco-sidebar-section {{ font-size: 0.65rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em; color: {ECO_GRIS}; background: {ECO_GRIS_LT}; border-left: 2px solid {ECO_AZUL}; padding: 5px 8px; margin: 14px 0 8px 0; }}
+    .eco-badge-ok {{ display: inline-block; background: {ECO_VERDE_LT}; color: {ECO_VERDE}; border: 1px solid {ECO_VERDE}; border-radius: 2px; font-size: 0.65rem; font-weight: 600; letter-spacing: 0.05em; padding: 2px 7px; text-transform: uppercase; }}
+    .eco-badge-warn {{ display: inline-block; background: #FFF8E1; color: #B7791F; border: 1px solid #F6AD55; border-radius: 2px; font-size: 0.65rem; font-weight: 600; padding: 2px 7px; text-transform: uppercase; }}
+    .eco-badge-info {{ display: inline-block; background: {ECO_AZUL_LT}; color: {ECO_AZUL}; border: 1px solid #90B8C8; border-radius: 2px; font-size: 0.65rem; font-weight: 600; padding: 2px 7px; text-transform: uppercase; }}
+    .eco-disclaimer {{ background: {ECO_AZUL_LT}; border-left: 3px solid {ECO_AZUL}; border-radius: 2px; padding: 10px 14px; font-size: 0.75rem; color: {ECO_GRIS}; line-height: 1.5; }}
     .pollination-logo, .ladybug-logo {{ display: none !important; }}
     div[title="Powered by Pollination"] {{ display: none !important; }}
     a[href*="pollination.cloud"] {{ display: none !important; }}
     a[href*="ladybug.tools"] {{ display: none !important; }}
-
-    /* ── Dataframe ──────────────────────────────────────────────────── */
-    [data-testid="stDataFrame"] {{
-        border: 1px solid {ECO_LINEA};
-        border-radius: 4px;
-    }}
-
-    /* ── Expander ───────────────────────────────────────────────────── */
-    details summary {{
-        font-size: 0.8rem;
-        font-weight: 600;
-        color: {ECO_AZUL};
-        text-transform: uppercase;
-        letter-spacing: 0.04em;
-    }}
+    [data-testid="stDataFrame"] {{ border: 1px solid {ECO_LINEA}; border-radius: 4px; }}
+    details summary {{ font-size: 0.8rem; font-weight: 600; color: {ECO_AZUL}; text-transform: uppercase; letter-spacing: 0.04em; }}
     </style>
 """, unsafe_allow_html=True)
 
 
 # =============================================================================
-# HELPER — Cards HTML para métricas sin truncamiento
+# HELPER — Cards HTML
 # =============================================================================
 def _img_base64(path, max_width, extra_style=""):
-    """Carga imagen como base64 — bypasea el procesamiento de st.image() para máxima nitidez."""
     import base64
     with open(path, "rb") as f:
         data = base64.b64encode(f.read()).decode()
@@ -512,7 +223,6 @@ def metric_card(label, value, delta=None, green=False, sm=False):
     """
 
 def render_cards(items, sm=False):
-    """items: lista de dicts con keys label, value, delta, green"""
     cols = st.columns(len(items))
     for col, item in zip(cols, items):
         with col:
@@ -531,24 +241,9 @@ def section_title(text):
     st.markdown(f'<div class="eco-section-title">{text}</div>', unsafe_allow_html=True)
 
 def fix_figura(fig):
-    """Post-procesa figuras del motor para separar título de leyendas."""
     fig.update_layout(
-        title=dict(
-            y=0.97,
-            x=0.0,
-            xanchor='left',
-            yanchor='top',
-            font=dict(size=13, color=ECO_AZUL),
-        ),
-        legend=dict(
-            orientation="h",
-            yanchor="top",
-            y=-0.18,
-            xanchor="left",
-            x=0,
-            font=dict(size=11),
-            bgcolor="rgba(255,255,255,0.8)",
-        ),
+        title=dict(y=0.97, x=0.0, xanchor='left', yanchor='top', font=dict(size=13, color=ECO_AZUL)),
+        legend=dict(orientation="h", yanchor="top", y=-0.18, xanchor="left", x=0, font=dict(size=11), bgcolor="rgba(255,255,255,0.8)"),
         margin=dict(t=80, b=130, l=60, r=130),
         height=580,
     )
@@ -556,10 +251,7 @@ def fix_figura(fig):
 
 def page_header(title, subtitle=None):
     sub = f'<div class="eco-page-subtitle">{subtitle}</div>' if subtitle else ""
-    st.markdown(
-        f'<div class="eco-page-title">{title}</div>{sub}',
-        unsafe_allow_html=True,
-    )
+    st.markdown(f'<div class="eco-page-title">{title}</div>{sub}', unsafe_allow_html=True)
     st.markdown("<div style='height:12px'></div>", unsafe_allow_html=True)
 
 
@@ -568,23 +260,8 @@ def page_header(title, subtitle=None):
 # =============================================================================
 @st.cache_data
 def cargar_catalogo():
-    # ── U-Values validados contra ficha técnica Sunoptics Serie 800MD ──────
-    # Fuente: Sunoptics Signature 800MD datasheet + ASHRAE Fundamentals
-    # Factor de conversión exacto: 1 BTU/hr·ft²·°F = 5.67826 W/m²K
-    #
-    # DGZ Double Glazed:  0.72 BTU/hr·ft²·°F → 4.08 W/m²K
-    # SGZ Single Glazed:  1.20 BTU/hr·ft²·°F → 6.81 W/m²K  (estándar acrílico sencillo)
-    # Storm Class 900SC:  asimilado a DGZ     → 4.08 W/m²K  (conservador)
-    # Smoke Vent SVT2:    asimilado a DGZ     → 4.08 W/m²K
-    #
-    # U_Value_IP: BTU/hr·ft²·°F  — base para display en sistema imperial
-    # U_Value:    W/m²K          — entrada a EnergyPlus (siempre SI)
-
-    # IP es la fuente de verdad (ficha técnica en BTU/hr·ft²·°F)
-    # SI se deriva para EnergyPlus — factor exacto ASHRAE: 1 BTU/hr·ft²·°F = 5.67826 W/m²K
-    _SGZ_IP = 1.20;  _SGZ_SI = round(_SGZ_IP * 5.67826, 4)   # 6.8139 → muestra 1.200 en imperial
-    _DGZ_IP = 0.72;  _DGZ_SI = round(_DGZ_IP * 5.67826, 4)   # 4.0884 → muestra 0.720 en imperial
-
+    _SGZ_IP = 1.20;  _SGZ_SI = round(_SGZ_IP * 5.67826, 4)
+    _DGZ_IP = 0.72;  _DGZ_SI = round(_DGZ_IP * 5.67826, 4)
     data = {
         'Modelo': [
             'Signature 800MD 4040 SGZ', 'Signature 800MD 4040 DGZ',
@@ -598,9 +275,7 @@ def cargar_catalogo():
         ],
         'VLT':        [0.74,    0.67,    0.74,    0.67,    0.74,    0.67,    0.52,    0.64   ],
         'SHGC':       [0.68,    0.48,    0.68,    0.48,    0.68,    0.48,    0.24,    0.31   ],
-        # SI — W/m²K — lo que entra a EnergyPlus
         'U_Value':    [_SGZ_SI, _DGZ_SI, _SGZ_SI, _DGZ_SI, _SGZ_SI, _DGZ_SI, _DGZ_SI, _DGZ_SI],
-        # Imperial — BTU/hr·ft²·°F — solo para display cuando _U == 'imperial'
         'U_Value_IP': [_SGZ_IP, _DGZ_IP, _SGZ_IP, _DGZ_IP, _SGZ_IP, _DGZ_IP, _DGZ_IP, _DGZ_IP],
         'Ancho_in':   [51.25,   51.25,   51.25,   51.25,   52.25,   52.25,   52.25,   52.25  ],
         'Largo_in':   [51.25,   51.25,   87.25,   87.25,   100.25,  100.25,  100.25,  100.25 ],
@@ -636,7 +311,7 @@ _defaults = {
     'lead_correo': '',
     'lead_telefono': '',
     'lead_comentario': '',
-    'lat': 9.9281,    # Alajuela, Costa Rica (default)
+    'lat': 9.9281,
     'lon': -84.0858,
     'lang': 'ES',
     'units': 'metric',
@@ -645,12 +320,9 @@ for key, val in _defaults.items():
     if key not in st.session_state:
         st.session_state[key] = val
 
-# Shortcuts globales — se actualizan en cada rerun de Streamlit
 _L = st.session_state.get("lang",  "ES")
 _U = st.session_state.get("units", "metric")
 
-# Dimensiones — se leen desde session_state donde el sidebar las guardó
-# None si el sidebar aún no las ha asignado (guard abajo previene uso prematuro)
 _ancho_usr = st.session_state.get("_ancho_usr")
 _largo_usr = st.session_state.get("_largo_usr")
 _alto_usr  = st.session_state.get("_alto_usr")
@@ -670,8 +342,6 @@ def buscar_estaciones():
 # 4. SIDEBAR
 # =============================================================================
 
-# ── Defaults para variables del sidebar — evitan UnboundLocalError ────────────
-# Se sobreescriben en el sidebar en cada rerun
 if "_ancho_nave" not in st.session_state:
     st.session_state["_ancho_nave"] = 50.0
 if "_largo_nave" not in st.session_state:
@@ -689,9 +359,8 @@ if "_tipo_uso" not in st.session_state:
 
 with st.sidebar:
 
-    # Brand header con logos
-    _eco_logo     = os.path.exists("assets/eco_logo.png")
-    _sun_logo     = os.path.exists("assets/sunoptics_logo.png")
+    _eco_logo = os.path.exists("assets/eco_logo.png")
+    _sun_logo = os.path.exists("assets/sunoptics_logo.png")
 
     if _eco_logo:
         st.markdown(f"""
@@ -716,34 +385,16 @@ with st.sidebar:
         </div>
         """, unsafe_allow_html=True)
 
-    # ── Lang toggle — responsivo, funciona en cualquier ancho ────────────
     st.markdown("""
     <style>
-    /* Selector de idioma — responsivo */
-    div[data-testid="stToggle"] {
-        display: flex !important;
-        align-items: center !important;
-        gap: 6px !important;
-        min-width: 0 !important;
-        flex-wrap: nowrap !important;
-    }
-    div[data-testid="stToggle"] label {
-        font-size: 13px !important;
-        font-weight: 600 !important;
-        white-space: nowrap !important;
-        overflow: visible !important;
-        min-width: 0 !important;
-    }
-    div[data-testid="stToggle"] p {
-        white-space: nowrap !important;
-        font-size: 13px !important;
-    }
+    div[data-testid="stToggle"] { display: flex !important; align-items: center !important; gap: 6px !important; min-width: 0 !important; flex-wrap: nowrap !important; }
+    div[data-testid="stToggle"] label { font-size: 13px !important; font-weight: 600 !important; white-space: nowrap !important; overflow: visible !important; min-width: 0 !important; }
+    div[data-testid="stToggle"] p { white-space: nowrap !important; font-size: 13px !important; }
     </style>
     """, unsafe_allow_html=True)
 
     st.markdown("<div style='height:6px'></div>", unsafe_allow_html=True)
 
-    # Toggle: OFF = Español 🇲🇽 / ON = English 🇺🇸
     _is_english = st.toggle(
         "ES  /  EN",
         value=(st.session_state.lang == "EN"),
@@ -751,7 +402,6 @@ with st.sidebar:
         help="Cambiar idioma / Switch language",
     )
 
-    # Regla de oro: idioma vincula unidades automáticamente
     if _is_english:
         st.session_state.lang  = "EN"
         st.session_state.units = "imperial"
@@ -764,12 +414,10 @@ with st.sidebar:
     st.markdown("<div style='height:4px'></div>", unsafe_allow_html=True)
 
     # ── 1. Ubicación ──────────────────────────────────────────────────────
-    st.markdown(f'<div class="eco-sidebar-section">{T("sidebar_01", _L)}</div>',
-                unsafe_allow_html=True)
+    st.markdown(f'<div class="eco-sidebar-section">{T("sidebar_01", _L)}</div>', unsafe_allow_html=True)
 
     with st.expander(T("search_location", _L), expanded=False):
-        search_name = st.text_input("Ciudad o país", placeholder="Ej: Alajuela, Costa Rica",
-                                    label_visibility="collapsed")
+        search_name = st.text_input("Ciudad o país", placeholder="Ej: Alajuela, Costa Rica", label_visibility="collapsed")
         if st.button(T("search_by_name", _L), use_container_width=True):
             if search_name:
                 from geopy.geocoders import Nominatim
@@ -796,7 +444,6 @@ with st.sidebar:
         if st.button(T("search_by_coords", _L), use_container_width=True):
             buscar_estaciones()
 
-    # Estado del clima
     if st.session_state.epw_path:
         st.markdown(f'<span class="eco-badge-ok">{T("climate_active", _L)}</span>', unsafe_allow_html=True)
         st.caption(f"{st.session_state.estacion_seleccionada or 'Estación cargada'}")
@@ -804,11 +451,9 @@ with st.sidebar:
         st.markdown(f'<span class="eco-badge-info">{T("no_climate", _L)}</span>', unsafe_allow_html=True)
 
     # ── 2. Geometría ──────────────────────────────────────────────────────
-    st.markdown(f'<div class="eco-sidebar-section">{T("sidebar_02", _L)}</div>',
-                unsafe_allow_html=True)
+    st.markdown(f'<div class="eco-sidebar-section">{T("sidebar_02", _L)}</div>', unsafe_allow_html=True)
 
-    # Rangos en unidades del usuario (ft si imperial, m si métrico)
-    _FT2M = 1 / CONVERSION["m_to_ft"]   # 0.3048 — solo se usa internamente
+    _FT2M = 1 / CONVERSION["m_to_ft"]
 
     if _U == "imperial":
         _w_min, _w_max, _w_def, _w_step = 33.0,  460.0, 164.0, 1.0
@@ -819,19 +464,19 @@ with st.sidebar:
         _l_min, _l_max, _l_def, _l_step = 10.0,  140.0, 100.0, 1.0
         _h_min, _h_max, _h_def, _h_step =  3.0,   30.0,   8.0, 0.5
 
-    # Lo que el usuario ve y escribe — en SUS unidades
-    # key incluye _U para forzar re-render limpio al cambiar idioma/unidades
-    _ancho_usr = st.number_input(T("width_m",  _L), min_value=_w_min, max_value=_w_max, value=_w_def, step=_w_step, key=f"ni_ancho_{_U}")
-    _largo_usr = st.number_input(T("length_m", _L), min_value=_l_min, max_value=_l_max, value=_l_def, step=_l_step, key=f"ni_largo_{_U}")
-    _alto_usr  = st.number_input(T("height_m", _L), min_value=_h_min, max_value=_h_max, value=_h_def, step=_h_step, key=f"ni_alto_{_U}")
+    # ── FIX v22.3 — key fija, sin _{_U} ──────────────────────────────────
+    # El label, min/max/value/step ya cambian con _U.
+    # La key NO debe cambiar: si cambia, Streamlit destruye el widget en el
+    # rerun post-toggle → UnboundLocalError en el body.
+    _ancho_usr = st.number_input(T("width_m",  _L), min_value=_w_min, max_value=_w_max, value=_w_def, step=_w_step, key="ni_ancho")
+    _largo_usr = st.number_input(T("length_m", _L), min_value=_l_min, max_value=_l_max, value=_l_def, step=_l_step, key="ni_largo")
+    _alto_usr  = st.number_input(T("height_m", _L), min_value=_h_min, max_value=_h_max, value=_h_def, step=_h_step, key="ni_alto")
 
     # Guardar en session_state para acceso fuera del sidebar
     st.session_state["_ancho_usr"] = _ancho_usr
     st.session_state["_largo_usr"] = _largo_usr
     st.session_state["_alto_usr"]  = _alto_usr
 
-    # Conversión interna a metros SI — EnergyPlus solo acepta SI
-    # El usuario NUNCA ve estos valores, solo el motor los usa
     if _U == "imperial":
         ancho_nave = _ancho_usr * _FT2M
         largo_nave = _largo_usr * _FT2M
@@ -841,19 +486,16 @@ with st.sidebar:
         largo_nave = _largo_usr
         alto_nave  = _alto_usr
 
-    # Área — mostrar en unidades del usuario
-    area_nave    = ancho_nave * largo_nave          # siempre en m² internamente
-    area_usr     = _ancho_usr * _largo_usr          # en ft² o m² según usuario
+    area_nave    = ancho_nave * largo_nave
+    area_usr     = _ancho_usr * _largo_usr
     area_max_usr = 10_000 if _U == "metric" else 10_000 * CONVERSION["m2_to_ft2"]
 
     st.caption(f"{T('floor_area', _L)}: **{fmt_area(area_nave, _U)}**")
     if area_nave > 10_000:
-        st.markdown(f'<span class="eco-badge-warn">{T("bem_required", _L)}</span>',
-                    unsafe_allow_html=True)
+        st.markdown(f'<span class="eco-badge-warn">{T("bem_required", _L)}</span>', unsafe_allow_html=True)
 
     # ── 3. Tipo de uso ────────────────────────────────────────────────────
-    st.markdown(f'<div class="eco-sidebar-section">{T("sidebar_03", _L)}</div>',
-                unsafe_allow_html=True)
+    st.markdown(f'<div class="eco-sidebar-section">{T("sidebar_03", _L)}</div>', unsafe_allow_html=True)
 
     tipo_uso = st.selectbox(
         "ASHRAE 90.1",
@@ -864,10 +506,8 @@ with st.sidebar:
     )
 
     # ── 4. Domo Sunoptics ─────────────────────────────────────────────────
-    st.markdown(f'<div class="eco-sidebar-section">{T("sidebar_04", _L)}</div>',
-                unsafe_allow_html=True)
+    st.markdown(f'<div class="eco-sidebar-section">{T("sidebar_04", _L)}</div>', unsafe_allow_html=True)
 
-    # Toggle capa sencilla / doble — default DGZ
     tipo_capa = st.radio(
         "Acristalamiento",
         options=["Doble (DGZ)", "Sencillo (SGZ)"],
@@ -878,16 +518,11 @@ with st.sidebar:
     _filtro_capa = "DGZ" if "DGZ" in tipo_capa else "SGZ"
     _df_filtrado = df_domos[df_domos['Acristalamiento'].str.contains(_filtro_capa)]
 
-    # Default según tipo de capa
     _modelo_default = "Signature 800MD 4070 DGZ" if _filtro_capa == "DGZ" else "Signature 800MD 4070 SGZ"
     _idx_default = _df_filtrado[_df_filtrado['Modelo'] == _modelo_default].index
     _idx_filtrado = list(_df_filtrado.index).index(int(_idx_default[0])) if len(_idx_default) else 0
 
-    modelo_sel = st.selectbox(
-        T("dome_model_select",_L),
-        _df_filtrado['Modelo'],
-        index=_idx_filtrado,
-    )
+    modelo_sel = st.selectbox(T("dome_model_select", _L), _df_filtrado['Modelo'], index=_idx_filtrado)
     sfr_target = st.slider(
         T("sfr_target", _L), 1.0, 10.0, 3.0, 0.1,
         help="Skylight-to-Floor Ratio. Límite ASHRAE 90.1: ≤5%.",
@@ -900,13 +535,10 @@ with st.sidebar:
         st.write(f"**{T('u_value', _L)}:** {fmt_uvalue(datos_domo_sel['U_Value'], _U)}")
         st.write(f"**{T('size', _L)}:** {fmt_length(datos_domo_sel['Ancho_m'], _U, 2)} × {fmt_length(datos_domo_sel['Largo_m'], _U, 2)}")
 
-    # Estado motor
     st.divider()
     if not MOTOR_DISPONIBLE:
-        st.markdown('<span class="eco-badge-warn">Motor EnergyPlus no disponible</span>',
-                    unsafe_allow_html=True)
+        st.markdown('<span class="eco-badge-warn">Motor EnergyPlus no disponible</span>', unsafe_allow_html=True)
 
-    # Logo Sunoptics
     if _sun_logo:
         st.markdown("<div style='height:10px'></div>", unsafe_allow_html=True)
         st.markdown(
@@ -919,14 +551,9 @@ with st.sidebar:
         Motor: EnergyPlus 23.2 (DOE)<br>
         Normativa: ISO 8995-1 · IES RP-7<br>
         Clima: TMYx OneBuilding.org<br>
-        v22.2 · Eco Consultor 2026
+        v22.3 · Eco Consultor 2026
     </div>
     """, unsafe_allow_html=True)
-
-
-# =============================================================================
-# 5. TABS — sin emojis, estilo técnico
-# =============================================================================
 
     # Persistir en session_state para uso en cuerpo principal
     st.session_state["_ancho_nave"] = ancho_nave
@@ -937,8 +564,12 @@ with st.sidebar:
     st.session_state["_modelo_sel"] = modelo_sel
     st.session_state["_tipo_uso"]   = tipo_uso
 
-# ── Leer variables del sidebar desde session_state ───────────────────────────
-# Garantiza que el body siempre tenga valores válidos sin importar el orden de rerun
+
+# =============================================================================
+# 5. TABS
+# =============================================================================
+
+# Leer variables del sidebar desde session_state
 ancho_nave = st.session_state.get("_ancho_nave", 50.0)
 largo_nave = st.session_state.get("_largo_nave", 100.0)
 alto_nave  = st.session_state.get("_alto_nave",  8.0)
@@ -962,10 +593,7 @@ tab_config, tab_clima, tab_3d, tab_analitica = st.tabs([
 # TAB 1 — MAPA Y DESCARGA EPW
 # =============================================================================
 with tab_config:
-    page_header(
-        T("tab_climate", _L),
-        "TMYx · OneBuilding.org — EnergyPlus Weather"
-    )
+    page_header(T("tab_climate", _L), "TMYx · OneBuilding.org — EnergyPlus Weather")
 
     col1, col2 = st.columns([2, 1])
 
@@ -973,10 +601,7 @@ with tab_config:
         section_title(T("interactive_map", _L))
         st.caption(T("map_caption", _L))
 
-        m = folium.Map(
-            location=[st.session_state.lat, st.session_state.lon], zoom_start=8,
-            tiles="CartoDB positron",
-        )
+        m = folium.Map(location=[st.session_state.lat, st.session_state.lon], zoom_start=8, tiles="CartoDB positron")
         folium.Marker(
             [st.session_state.lat, st.session_state.lon],
             tooltip="Ubicación del Proyecto",
@@ -994,8 +619,7 @@ with tab_config:
                         icon=folium.Icon(color='blue', icon='cloud'),
                     ).add_to(m)
 
-        output = st_folium(m, width=700, height=480,
-                           use_container_width=True, key="mapa_estaciones")
+        output = st_folium(m, width=700, height=480, use_container_width=True, key="mapa_estaciones")
 
         if output and output.get("last_clicked"):
             c_lat = output["last_clicked"]["lat"]
@@ -1019,17 +643,14 @@ with tab_config:
 
         if st.session_state.df_cercanas is not None and not st.session_state.df_cercanas.empty:
             st.caption(T("select_station", _L))
-
             for idx, row in st.session_state.df_cercanas.iterrows():
                 st_name = row.get('name') or row.get('Station') or f"Estación {idx}"
                 st_dist = row.get('distancia_km') or 0
                 url     = row.get('URL_ZIP') or row.get('epw')
-
                 with st.container():
                     st.markdown(f"**{st_name}**")
                     st.caption(f"{T('distance_label',_L)}: **{st_dist} km**")
-                    if st.button(T("download_climate", _L),
-                                 key=f"btn_st_{idx}", use_container_width=True):
+                    if st.button(T("download_climate", _L), key=f"btn_st_{idx}", use_container_width=True):
                         if url:
                             with st.spinner(T("spinner_epw", _L)):
                                 path = descargar_y_extraer_epw(url)
@@ -1037,11 +658,11 @@ with tab_config:
                                     try:
                                         data = procesar_datos_clima(path)
                                         if data:
-                                            st.session_state.clima_data           = data
+                                            st.session_state.clima_data            = data
                                             st.session_state.estacion_seleccionada = st_name
-                                            st.session_state.epw_path             = path
-                                            st.session_state.resultado_motor      = None
-                                            st.session_state.calculo_completado   = False
+                                            st.session_state.epw_path              = path
+                                            st.session_state.resultado_motor       = None
+                                            st.session_state.calculo_completado    = False
                                             st.rerun()
                                         else:
                                             st.error("Error al procesar el EPW con Ladybug.")
@@ -1055,50 +676,39 @@ with tab_config:
 # TAB 2 — ANÁLISIS BIOCLIMÁTICO
 # =============================================================================
 with tab_clima:
-    page_header(
-        T("tab_context", _L),
-        T("temp_caption", _L)
-    )
+    page_header(T("tab_context", _L), T("temp_caption", _L))
 
     if st.session_state.clima_data and 'vel_viento' in st.session_state.clima_data:
         clima = st.session_state.clima_data
         md    = clima.get('metadata', {})
 
         render_cards([
-            {"label": T("latitude", _L),  "value": f"{md.get('lat', st.session_state.lat):.1f}°N"},
-            {"label": T("longitude", _L), "value": f"{md.get('lon', st.session_state.lon):.1f}°W"},
-            {"label": T("elevation", _L),        "value": f"{int(round(md.get('elevacion', 0)))} m"},
-            {"label": T("rel_humidity", _L),     "value": f"{round(sum(clima.get('hum_relativa',[0]))/8760)} %"},
-            {"label": T("wind_speed", _L),       "value": f"{round(sum(clima.get('vel_viento',[0]))/8760, 1)} m/s"},
+            {"label": T("latitude", _L),      "value": f"{md.get('lat', st.session_state.lat):.1f}°N"},
+            {"label": T("longitude", _L),     "value": f"{md.get('lon', st.session_state.lon):.1f}°W"},
+            {"label": T("elevation", _L),     "value": f"{int(round(md.get('elevacion', 0)))} m"},
+            {"label": T("rel_humidity", _L),  "value": f"{round(sum(clima.get('hum_relativa',[0]))/8760)} %"},
+            {"label": T("wind_speed", _L),    "value": f"{round(sum(clima.get('vel_viento',[0]))/8760, 1)} m/s"},
         ])
 
         st.markdown("<div style='height:16px'></div>", unsafe_allow_html=True)
-
         col_g1, col_g2 = st.columns(2)
 
         with col_g1:
             section_title(T("wind_rose", _L))
-            df_viento = pd.DataFrame({
-                'dir': clima.get('dir_viento', []),
-                'vel': clima.get('vel_viento', []),
-            })
+            df_viento = pd.DataFrame({'dir': clima.get('dir_viento', []), 'vel': clima.get('vel_viento', [])})
             if not df_viento.empty:
                 df_viento = df_viento[df_viento['vel'] > 0.5]
                 bins_dir  = np.arange(-11.25, 372.0, 22.5)
-                labels_dir = ['N','NNE','NE','ENE','E','ESE','SE','SSE',
-                               'S','SSW','SW','WSW','W','WNW','NW','NNW','N2']
-                df_viento['Dir_Cat'] = pd.cut(df_viento['dir'], bins=bins_dir,
-                                              labels=labels_dir, right=False)
+                labels_dir = ['N','NNE','NE','ENE','E','ESE','SE','SSE','S','SSW','SW','WSW','W','WNW','NW','NNW','N2']
+                df_viento['Dir_Cat'] = pd.cut(df_viento['dir'], bins=bins_dir, labels=labels_dir, right=False)
                 df_viento['Dir_Cat'] = df_viento['Dir_Cat'].replace('N2', 'N')
                 bins_vel   = [0, 2, 4, 6, 8, 20]
                 labels_vel = ['0–2 m/s','2–4 m/s','4–6 m/s','6–8 m/s','>8 m/s']
                 df_viento['Vel_Cat'] = pd.cut(df_viento['vel'], bins=bins_vel, labels=labels_vel)
                 df_rose = df_viento.groupby(['Dir_Cat','Vel_Cat']).size().reset_index(name='Frequency')
-                fig_rose = px.bar_polar(
-                    df_rose, r="Frequency", theta="Dir_Cat", color="Vel_Cat",
+                fig_rose = px.bar_polar(df_rose, r="Frequency", theta="Dir_Cat", color="Vel_Cat",
                     color_discrete_sequence=["#B8D4E0","#7AAFC4","#3E8CA8","#003C52","#001F2B"],
-                    template="plotly_white",
-                )
+                    template="plotly_white")
                 fig_rose.update_layout(margin=dict(t=20, b=20, l=20, r=20))
                 st.plotly_chart(fig_rose, use_container_width=True)
 
@@ -1115,11 +725,7 @@ with tab_clima:
                 textfont=dict(size=11),
                 textinfo='percent+label',
             )])
-            fig_pie.update_layout(
-                margin=dict(t=10, b=10, l=20, r=20),
-                template="plotly_white",
-                showlegend=False,
-            )
+            fig_pie.update_layout(margin=dict(t=10, b=10, l=20, r=20), template="plotly_white", showlegend=False)
             st.plotly_chart(fig_pie, use_container_width=True)
 
         st.divider()
@@ -1138,7 +744,7 @@ with tab_clima:
                 hovertemplate=("Day %{x} · Hour %{y}:00 · %{z:.1f} °F<extra></extra>" if _L=="EN" else "Día %{x} · Hora %{y}:00 · %{z:.1f} °C<extra></extra>"),
             ))
             fig_calor.update_layout(
-                xaxis_title=(T("days_of_year", _L)),
+                xaxis_title=T("days_of_year", _L),
                 yaxis_title=T("hour_of_day", _L),
                 yaxis=dict(tickmode='linear', tick0=0, dtick=4),
                 margin=dict(t=10, b=30, l=40, r=20),
@@ -1163,15 +769,15 @@ with tab_clima:
         if len(nubes_array) == 8760:
             st.markdown("<div style='height:14px'></div>", unsafe_allow_html=True)
             section_title(T("cloudiness", _L))
-            fechas    = pd.date_range(start="2023-01-01", periods=8760, freq="h")
-            df_nubes  = pd.DataFrame({'Fecha': fechas, 'Nubosidad': np.array(nubes_array) * 10})
+            fechas   = pd.date_range(start="2023-01-01", periods=8760, freq="h")
+            df_nubes = pd.DataFrame({'Fecha': fechas, 'Nubosidad': np.array(nubes_array) * 10})
             df_nubes['Mes'] = df_nubes['Fecha'].dt.month
             nubes_mensual = df_nubes.groupby('Mes')['Nubosidad'].mean()
             meses_labels  = (
-            ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic']
-            if _L == "ES" else
-            ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
-        )
+                ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic']
+                if _L == "ES" else
+                ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
+            )
             fig_nubes = go.Figure(data=[go.Bar(
                 x=meses_labels, y=nubes_mensual,
                 marker_color=ECO_GRIS,
@@ -1195,10 +801,7 @@ with tab_clima:
 # TAB 3 — GEOMETRÍA 3D
 # =============================================================================
 with tab_3d:
-    page_header(
-        T("tab_3d_title", _L),
-        T("tab_3d_subtitle", _L)
-    )
+    page_header(T("tab_3d_title", _L), T("tab_3d_subtitle", _L))
 
     if st.button(T("btn_generate_3d", _L), use_container_width=True, type="primary"):
         with st.spinner(T("spinner_3d", _L)):
@@ -1232,10 +835,7 @@ with tab_3d:
         datos_domo = st.session_state.datos_domo_actual
         domo_ancho = float(datos_domo['Ancho_m'])
         domo_largo = float(datos_domo['Largo_m'])
-        # A, L, H en unidades del USUARIO para todo el render visual
-        # Los metros internos solo van al motor — aquí el usuario ve sus propias unidades
         A, L, H    = st.session_state.get("_ancho_usr", 50.0), st.session_state.get("_largo_usr", 100.0), st.session_state.get("_alto_usr", 8.0)
-        # Domos del catálogo están en metros → convertir para render visual
         _domo_a_vis = domo_ancho * CONVERSION["m_to_ft"] if _U == "imperial" else domo_ancho
         _domo_l_vis = domo_largo * CONVERSION["m_to_ft"] if _U == "imperial" else domo_largo
 
@@ -1247,23 +847,22 @@ with tab_3d:
             st.markdown(f'<span class="eco-badge-warn">{T("ashrae_exceeds", _L)}</span>', unsafe_allow_html=True)
 
         render_cards([
-            {"label": T("skylights_count",_L),     "value": f"{num_domos} uds"},
-            {"label": T("sfr_real",_L), "value": f"{sfr_pct:.2f} %"},
+            {"label": T("skylights_count",_L), "value": f"{num_domos} uds"},
+            {"label": T("sfr_real",_L),        "value": f"{sfr_pct:.2f} %"},
         ])
 
         st.divider()
         mostrar_sol = st.toggle(T("sunpath_toggle", _L), value=False)
 
         fig3d = go.Figure()
-        COL_PARED = "rgba(255,255,0,0.20)"    # Amarillo EnergyPlus #FFFF00
-        COL_TECHO = "rgba(255,0,0,0.15)"       # Rojo EnergyPlus
-        COL_PISO  = "rgba(160,160,160,0.35)"   # Gris
+        COL_PARED = "rgba(255,255,0,0.20)"
+        COL_TECHO = "rgba(255,0,0,0.15)"
+        COL_PISO  = "rgba(160,160,160,0.35)"
         COL_EDGE  = "#555555"
         COL_DOMO  = "#4FC3F7"
         COL_DOMO_E= "#003C52"
         COL_SOL   = "#FFD600"
 
-        # Wireframe nave
         pts = [(0,0,0),(A,0,0),(A,L,0),(0,L,0),(0,0,H),(A,0,H),(A,L,H),(0,L,H)]
         ex,ey,ez = [],[],[]
         for i,j in [(0,1),(1,2),(2,3),(3,0),(4,5),(5,6),(6,7),(7,4),(0,4),(1,5),(2,6),(3,7)]:
@@ -1272,7 +871,6 @@ with tab_3d:
         fig3d.add_trace(go.Scatter3d(x=ex,y=ey,z=ez,mode='lines',
             line=dict(color=COL_EDGE,width=3),showlegend=False,hoverinfo='skip'))
 
-        # Techo y paredes como superficies
         for verts, col, nom, show in [
             ([(0,0,0),(A,0,0),(A,L,0),(0,L,0)], COL_PISO,  T("floor_3d",_L),  True),
             ([(0,0,H),(A,0,H),(A,L,H),(0,L,H)], COL_TECHO, T("roof_3d",_L),   True),
@@ -1285,11 +883,9 @@ with tab_3d:
             fig3d.add_trace(go.Mesh3d(x=xs,y=ys,z=zs,i=[0,0],j=[1,2],k=[2,3],
                 color=col,opacity=0.7,flatshading=True,showlegend=show,name=nom,hoverinfo='skip'))
 
-        # Domos
         cols_d = max(1, round((num_domos*(A/L))**0.5))
         rows_d = max(1, _math.ceil(num_domos/cols_d))
         dx_d, dy_d = A/cols_d, L/rows_d
-        dxs,dys,dzs=[],[],[]
         for ci in range(cols_d):
             for ri in range(rows_d):
                 cx=ci*dx_d+dx_d/2; cy=ri*dy_d+dy_d/2
@@ -1299,14 +895,12 @@ with tab_3d:
                     x=[x0d,x1d,x1d,x0d],y=[y0d,y0d,y1d,y1d],z=[H+0.05]*4,
                     i=[0,0],j=[1,2],k=[2,3],color=COL_DOMO,opacity=0.9,
                     flatshading=True,showlegend=False,hoverinfo='skip'))
-                dxs.append(cx); dys.append(cy); dzs.append(H+0.05)
-        # Leyenda limpia sin marcadores centroide
+
         fig3d.add_trace(go.Scatter3d(x=[None],y=[None],z=[None],mode='markers',
             marker=dict(size=6,color=COL_DOMO,symbol='square'),
-            name=f"Sunoptics® Skylights ({num_domos})" if _L=="EN" else f"Domos Sunoptics® ({num_domos} uds)",showlegend=True,
-            hoverinfo='skip'))
+            name=f"Sunoptics® Skylights ({num_domos})" if _L=="EN" else f"Domos Sunoptics® ({num_domos} uds)",
+            showlegend=True,hoverinfo='skip'))
 
-        # Sunpath
         if mostrar_sol:
             lat_rad = _math.radians(st.session_state.lat)
             cx_nav, cy_nav = A/2, L/2
@@ -1334,26 +928,22 @@ with tab_3d:
                 if sx:
                     fig3d.add_trace(go.Scatter3d(x=sx,y=sy,z=sz,mode='lines+markers',
                         line=dict(color=mcolor,width=2),marker=dict(size=2,color=mcolor),
-                        name=f"Sunpath {mnombre if _L=='EN' else mnombre}",showlegend=True))
+                        name=f"Sunpath {mnombre}",showlegend=True))
             fig3d.add_trace(go.Scatter3d(x=[cx_nav],y=[cy_nav],z=[H+radio],mode='markers',
                 marker=dict(size=12,color=COL_SOL,line=dict(color='orange',width=2)),
                 name=T('solar_zenith',_L),showlegend=True))
 
         fig3d.update_layout(
             scene=dict(
-                xaxis=dict(title=f"{T('width_label',_L)} ({A:.0f} {T('units_m',_L)})",backgroundcolor="rgba(245,240,230,0.8)",
-                    gridcolor="#D4B896",showbackground=True),
-                yaxis=dict(title=f"{T('length_label',_L)} ({L:.0f} {T('units_m',_L)})",backgroundcolor="rgba(245,240,230,0.8)",
-                    gridcolor="#D4B896",showbackground=True),
-                zaxis=dict(title=f"{T('height_label',_L)} ({H:.0f} {T('units_m',_L)})",backgroundcolor="rgba(220,210,200,0.5)",
-                    gridcolor="#C4A882",showbackground=True),
+                xaxis=dict(title=f"{T('width_label',_L)} ({A:.0f} {T('units_m',_L)})",backgroundcolor="rgba(245,240,230,0.8)",gridcolor="#D4B896",showbackground=True),
+                yaxis=dict(title=f"{T('length_label',_L)} ({L:.0f} {T('units_m',_L)})",backgroundcolor="rgba(245,240,230,0.8)",gridcolor="#D4B896",showbackground=True),
+                zaxis=dict(title=f"{T('height_label',_L)} ({H:.0f} {T('units_m',_L)})",backgroundcolor="rgba(220,210,200,0.5)",gridcolor="#C4A882",showbackground=True),
                 camera=dict(eye=dict(x=1.5,y=-1.8,z=1.2)),
                 aspectmode="data",
             ),
             margin=dict(l=0,r=0,t=35,b=0), height=520,
             paper_bgcolor="white",
-            legend=dict(x=0.01,y=0.99,bgcolor="rgba(255,255,255,0.8)",
-                bordercolor="#D4B896",borderwidth=1,font=dict(size=9)),
+            legend=dict(x=0.01,y=0.99,bgcolor="rgba(255,255,255,0.8)",bordercolor="#D4B896",borderwidth=1,font=dict(size=9)),
             title=dict(
                 text=f"{st.session_state.get('_ancho_usr',50.0):.0f}×{st.session_state.get('_largo_usr',100.0):.0f}×{st.session_state.get('_alto_usr',8.0):.0f} {T('units_m',_L)} — {num_domos} {'Skylights' if _L=='EN' else 'domos'} Sunoptics® (SFR {sfr_pct:.1f}%)",
                 font=dict(size=11,color="#003C52"),x=0.5),
@@ -1361,31 +951,25 @@ with tab_3d:
         st.plotly_chart(fig3d, use_container_width=True)
 
     else:
-        st.markdown(f"""
-        <div class="eco-disclaimer">
-            {T("configure_prompt", _L)}
-        </div>
-        """, unsafe_allow_html=True)
+        st.markdown(f'<div class="eco-disclaimer">{T("configure_prompt", _L)}</div>', unsafe_allow_html=True)
+
 
 # =============================================================================
+# TAB 4 — SIMULACIÓN ENERGÉTICA
+# =============================================================================
 with tab_analitica:
-    page_header(
-        T("tab_energy_title", _L),
-        T("tab_energy_sub", _L)
-    )
+    page_header(T("tab_energy_title", _L), T("tab_energy_sub", _L))
 
     if not MOTOR_DISPONIBLE:
         st.error(T("err_motor_unavailable", _L))
         st.stop()
 
     if not st.session_state.clima_data:
-        st.markdown(f'<div class="eco-disclaimer">Descarga un archivo climático en <strong>Selección de Clima</strong> para habilitar la simulación.</div>',
-                    unsafe_allow_html=True)
+        st.markdown(f'<div class="eco-disclaimer">Descarga un archivo climático en <strong>Selección de Clima</strong> para habilitar la simulación.</div>', unsafe_allow_html=True)
         st.stop()
 
     if not st.session_state.epw_path or not os.path.exists(st.session_state.epw_path):
-        st.markdown(f'<div class="eco-disclaimer">Archivo EPW no disponible. Vuelve a descargar el clima.</div>',
-                    unsafe_allow_html=True)
+        st.markdown(f'<div class="eco-disclaimer">Archivo EPW no disponible. Vuelve a descargar el clima.</div>', unsafe_allow_html=True)
         st.stop()
 
     if area_nave > 10_000:
@@ -1398,7 +982,6 @@ with tab_analitica:
     pais       = md.get("pais", "")
     datos_domo = df_domos[df_domos["Modelo"] == modelo_sel].iloc[0]
 
-    # Resumen del proyecto
     with st.expander(T("project_summary", _L), expanded=True):
         render_cards([
             {"label": T("facility_label",_L), "value": fmt_dims(ancho_nave,largo_nave,alto_nave,_U)},
@@ -1416,36 +999,19 @@ with tab_analitica:
 
     st.divider()
 
-    # =========================================================================
-    # ETAPA 1 — Simulación base vs diseño
-    # =========================================================================
+    # ── Etapa 1 — Simulación base vs diseño ──────────────────────────────
     if not st.session_state.diseno_completado:
 
         col_btn, col_info = st.columns([1, 2])
         with col_btn:
-            ejecutar_diseno = st.button(
-                T("btn_simulate", _L),
-                use_container_width=True,
-                type="primary",
-            )
+            ejecutar_diseno = st.button(T("btn_simulate", _L), use_container_width=True, type="primary")
         with col_info:
-            st.markdown(f"""
-            <div class="eco-disclaimer">
-                {T("compare_prompt", _L).format(sfr=f"{sfr_target*100:.0f}")}
-            </div>
-            """, unsafe_allow_html=True)
+            st.markdown(f'<div class="eco-disclaimer">{T("compare_prompt", _L).format(sfr=f"{sfr_target*100:.0f}")}</div>', unsafe_allow_html=True)
 
         if ejecutar_diseno:
             barra      = st.progress(0, text=T("spinner_motor", _L))
             status_box = st.empty()
-
-            facts = [
-                T("fact_prismatic",  _L),
-                T("fact_lighting",   _L),
-                T("fact_co2",        _L),
-                T("fact_sfr",        _L),
-                T("fact_ashrae",     _L),
-            ]
+            facts = [T("fact_prismatic",_L), T("fact_lighting",_L), T("fact_co2",_L), T("fact_sfr",_L), T("fact_ashrae",_L)]
             fact_box = st.info(facts[0])
 
             def actualizar_progreso(paso, total, mensaje):
@@ -1455,7 +1021,6 @@ with tab_analitica:
                 if paso < len(facts):
                     fact_box.info(facts[paso % len(facts)])
 
-            # Guard — verificar que el sidebar ya asignó dimensiones reales
             if not st.session_state.get("_ancho_nave"):
                 st.error(T("err_no_geometry", _L))
                 st.stop()
@@ -1474,7 +1039,6 @@ with tab_analitica:
                     domo_ancho_m = float(datos_domo["Ancho_m"]),
                     domo_largo_m = float(datos_domo["Largo_m"]),
                 )
-                # Inyectar idioma y unidades — compatibles con cualquier versión del motor
                 config["lang"]  = _L
                 config["units"] = _U
                 resultado = simular_caso_diseno(config, callback=actualizar_progreso)
@@ -1493,9 +1057,7 @@ with tab_analitica:
                 barra.empty()
                 st.error(f"Error inesperado: {e}")
 
-    # =========================================================================
-    # RESULTADO ETAPA 1
-    # =========================================================================
+    # ── Resultado Etapa 1 ─────────────────────────────────────────────────
     if st.session_state.diseno_completado and st.session_state.resultado_diseno:
         res = st.session_state.resultado_diseno
 
@@ -1513,7 +1075,7 @@ with tab_analitica:
         render_cards([
             {"label": T("skylights_sfr_label",_L).format(sfr=f"{res['sfr_real']:.1f}"),
              "value": f"{res['n_domos']} {T('units_count',_L)}",
-             "delta": f"{fmt_illuminance(res['fc_lux'], _U, 0)} {T('lux_avg', _L)}"}, 
+             "delta": f"{fmt_illuminance(res['fc_lux'], _U, 0)} {T('lux_avg', _L)}"},
             {"label": T("visual_comfort", _L),
              "value": get_compliance_label(res["semaforo_txt"], _L),
              "delta": "ISO 8995-1 + IES RP-7"},
@@ -1545,37 +1107,15 @@ with tab_analitica:
 
                 st.markdown("""
                 <style>
-                /* CTA verde — múltiples selectores para máxima compatibilidad */
-                div[data-testid="stFormSubmitButton"] button {
-                    background-color: #28a745 !important;
-                    background: #28a745 !important;
-                    color: #FFFFFF !important;
-                    font-weight: 800 !important;
-                    font-size: 1.0rem !important;
-                    border: 2px solid #1e7e34 !important;
-                    border-radius: 6px !important;
-                    padding: 0.65rem 1rem !important;
-                    width: 100% !important;
-                }
-                div[data-testid="stFormSubmitButton"] button:hover {
-                    background-color: #1e7e34 !important;
-                    background: #1e7e34 !important;
-                    color: #FFFFFF !important;
-                }
-                div[data-testid="stFormSubmitButton"] button p {
-                    color: #FFFFFF !important;
-                    font-weight: 800 !important;
-                }
+                div[data-testid="stFormSubmitButton"] button { background-color: #28a745 !important; background: #28a745 !important; color: #FFFFFF !important; font-weight: 800 !important; font-size: 1.0rem !important; border: 2px solid #1e7e34 !important; border-radius: 6px !important; padding: 0.65rem 1rem !important; width: 100% !important; }
+                div[data-testid="stFormSubmitButton"] button:hover { background-color: #1e7e34 !important; background: #1e7e34 !important; color: #FFFFFF !important; }
+                div[data-testid="stFormSubmitButton"] button p { color: #FFFFFF !important; font-weight: 800 !important; }
                 </style>
                 """, unsafe_allow_html=True)
-                enviado = st.form_submit_button(
-                    T("btn_request_report", _L),
-                    use_container_width=True,
-                )
+                enviado = st.form_submit_button(T("btn_request_report", _L), use_container_width=True)
 
             if enviado:
                 if nombre_contacto and empresa_contacto and correo_contacto:
-                    # ── Verificar cuota antes de aceptar ─────────────────
                     sims_hoy, permitido = verificar_cuota(correo_contacto.strip().lower())
                     if not permitido:
                         st.markdown(f"""
@@ -1587,12 +1127,12 @@ with tab_analitica:
                         </div>
                         """, unsafe_allow_html=True)
                     else:
-                        st.session_state.lead_nombre      = nombre_contacto
-                        st.session_state.lead_empresa     = empresa_contacto
-                        st.session_state.lead_correo      = correo_contacto
-                        st.session_state.lead_telefono    = telefono_contacto
-                        st.session_state.lead_comentario  = comentario
-                        st.session_state.lead_capturado   = True
+                        st.session_state.lead_nombre     = nombre_contacto
+                        st.session_state.lead_empresa    = empresa_contacto
+                        st.session_state.lead_correo     = correo_contacto
+                        st.session_state.lead_telefono   = telefono_contacto
+                        st.session_state.lead_comentario = comentario
+                        st.session_state.lead_capturado  = True
                         st.rerun()
                 else:
                     st.error(T("err_lead_incomplete", _L))
@@ -1603,33 +1143,24 @@ with tab_analitica:
             clima = st.session_state.clima_data or {}
             md    = clima.get("metadata", {})
 
-            # Subir EPW a GCS para que el Job pueda accederlo
             with st.spinner(T("spinner_prep", _L)):
-                gcs_uri = upload_epw_to_gcs(
-                    st.session_state.epw_path,
-                    st.session_state.lead_correo,
-                )
+                gcs_uri = upload_epw_to_gcs(st.session_state.epw_path, st.session_state.lead_correo)
             if not gcs_uri:
                 st.error(T("err_epw_prep", _L))
                 st.stop()
 
-            # Subir sql_base a GCS si existe (reutiliza SFR=0 de Etapa 1)
-            _sql_base = st.session_state.resultado_diseno.get("sql_base") \
-                        if st.session_state.resultado_diseno else None
+            _sql_base = st.session_state.resultado_diseno.get("sql_base") if st.session_state.resultado_diseno else None
             gcs_sql_base = None
             if _sql_base and os.path.exists(_sql_base):
                 with st.spinner(T("spinner_opt", _L)):
-                    gcs_sql_base = upload_epw_to_gcs(
-                        _sql_base,
-                        st.session_state.lead_correo + "_sql",
-                    )
+                    gcs_sql_base = upload_epw_to_gcs(_sql_base, st.session_state.lead_correo + "_sql")
 
             _config_job = {
                 "ancho":        ancho_nave,
                 "largo":        largo_nave,
                 "altura":       alto_nave,
                 "tipo_uso":     tipo_uso,
-                "epw_path":     gcs_uri,       # URI de GCS — no ruta local
+                "epw_path":     gcs_uri,
                 "sfr_diseno":   sfr_target,
                 "domo_vlt":     float(datos_domo["VLT"]),
                 "domo_shgc":    float(datos_domo["SHGC"]),
@@ -1649,8 +1180,7 @@ with tab_analitica:
                 "telefono":   st.session_state.lead_telefono,
                 "comentario": st.session_state.lead_comentario,
             }
-            _sql_base_job = st.session_state.resultado_diseno.get("sql_base") \
-                        if st.session_state.resultado_diseno else None
+            _sql_base_job = st.session_state.resultado_diseno.get("sql_base") if st.session_state.resultado_diseno else None
 
             ok, msg = lanzar_cloud_run_job(_config_job, _lead_job, gcs_sql_base)
 
@@ -1661,37 +1191,28 @@ with tab_analitica:
                 st.error(f"No se pudo lanzar el análisis: {msg}")
                 st.info(T("err_contact_us", _L))
 
-        # ── Mensaje de confirmación post-lanzamiento ──────────────────────
+        # ── Confirmación post-lanzamiento ─────────────────────────────────
         if st.session_state.bg_lanzado:
             st.markdown(f"""
-            <div style="
-                background: #EBF5E1;
-                border-left: 4px solid #4A7C2F;
-                border-radius: 4px;
-                padding: 20px 24px;
-                margin: 16px 0;
-            ">
-                <div style="font-size:1rem; font-weight:700; color:#4A7C2F; margin-bottom:6px;">
-                    {T("processing_title", _L)}
-                </div>
-                <div style="font-size:0.85rem; color:#4A5568; line-height:1.7;">
+            <div style="background:#EBF5E1;border-left:4px solid #4A7C2F;border-radius:4px;padding:20px 24px;margin:16px 0;">
+                <div style="font-size:1rem;font-weight:700;color:#4A7C2F;margin-bottom:6px;">{T("processing_title", _L)}</div>
+                <div style="font-size:0.85rem;color:#4A5568;line-height:1.7;">
                     {T("processing_mins_tmpl", _L).format(mins=max(20, min(40, int(ancho_nave*largo_nave/1000)*3 + 20)))}
                     <strong>{st.session_state.lead_empresa}</strong>.<br>
-                    {T("report_to_email", _L)}
-                    <strong>{st.session_state.lead_correo}</strong>.<br><br>
+                    {T("report_to_email", _L)} <strong>{st.session_state.lead_correo}</strong>.<br><br>
                     {T("can_close_window", _L)}
                 </div>
             </div>
             """, unsafe_allow_html=True)
 
             render_cards([
-                {"label": T("status_label",_L), "value": T("simulating_cloud",_L), "delta": "7 × EnergyPlus 23.2", "green": True},
-                {"label": T("delivery_label", _L),       "value": f"~{max(20, min(40, int(ancho_nave*largo_nave/1000)*3 + 20))} {'min'}", "delta": f"A: {st.session_state.lead_correo}"},
-                {"label": T("pdf_field_engine",_L), "value": "EnergyPlus 23.2",    "delta": "DOE oficial"},
-                {"label": T("analysis_label", _L),      "value": T("analysis_value", _L), "delta": T("analysis_delta", _L)},
+                {"label": T("status_label",_L),   "value": T("simulating_cloud",_L), "delta": "7 × EnergyPlus 23.2", "green": True},
+                {"label": T("delivery_label",_L),  "value": f"~{max(20, min(40, int(ancho_nave*largo_nave/1000)*3 + 20))} min", "delta": f"A: {st.session_state.lead_correo}"},
+                {"label": T("pdf_field_engine",_L),"value": "EnergyPlus 23.2", "delta": "DOE oficial"},
+                {"label": T("analysis_label",_L),  "value": T("analysis_value",_L), "delta": T("analysis_delta",_L)},
             ])
 
-        # Reset
+        # ── Reset ─────────────────────────────────────────────────────────
         st.divider()
         if st.button(T("btn_new_sim", _L)):
             for k in ["resultado_diseno","resultado_motor","diseno_completado",
