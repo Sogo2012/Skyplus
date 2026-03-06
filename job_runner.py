@@ -442,7 +442,7 @@ def generar_pdf(config, resultado, lead):
         "",                                    # Pág 1 — sin texto en portada
         "Modelo Geométrico",
         "Análisis Energético",
-        "Confort Visual & Recomendación",
+        ("Visual Comfort & Recommendation" if _L=="EN" else "Confort Visual & Recomendación"),
     ]
 
     story = []
@@ -733,7 +733,7 @@ def generar_pdf(config, resultado, lead):
     story.append(Spacer(1, 0.4*cm))
 
     # Semáforo visual
-    sem_txt = resultado.get("semaforo_dual", resultado.get("semaforo_opt","Confort óptimo"))
+    sem_txt = resultado.get("semaforo_dual", resultado.get("semaforo_opt","Confort óptimo (ISO+IES)"))
     sem_color_hex = "#2ecc71"
     if "Sobreiluminación" in sem_txt: sem_color_hex = "#e74c3c"
     elif "Límite" in sem_txt:         sem_color_hex = "#f39c12"
