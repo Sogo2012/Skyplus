@@ -18,6 +18,7 @@ from streamlit_folium import st_folium
 
 # Módulos locales
 from geometry_utils import generar_nave_3d_vtk
+from i18n import T, fmt_length, fmt_area, fmt_illuminance, fmt_energy, fmt_uvalue, fmt_dims, get_setpoint, get_occupancy_label, get_compliance_label, SETPOINTS, CONVERSION
 from weather_utils import (
     obtener_estaciones_cercanas,
     descargar_y_extraer_epw,
@@ -165,6 +166,27 @@ st.markdown(f"""
     [data-testid="stSidebar"] {{
         background-color: #FFFFFF;
         border-right: 1px solid {ECO_LINEA};
+    }}
+
+    /* ── Sidebar collapse arrow — gris claro sobre fondo verde ──────── */
+    [data-testid="stSidebarCollapsedControl"] {{
+        background-color: {ECO_AZUL} !important;
+    }}
+    [data-testid="stSidebarCollapsedControl"] button {{
+        background-color: transparent !important;
+        border: none !important;
+    }}
+    [data-testid="stSidebarCollapsedControl"] button svg,
+    [data-testid="stSidebarCollapsedControl"] button svg path {{
+        stroke: #F0F2F6 !important;
+        fill: #F0F2F6 !important;
+        color: #F0F2F6 !important;
+    }}
+    /* Chevron en header cuando sidebar está abierto */
+    [data-testid="stSidebarContent"] button[kind="header"] svg,
+    button[data-testid="baseButton-header"] svg {{
+        stroke: #F0F2F6 !important;
+        color: #F0F2F6 !important;
     }}
 
     [data-testid="stSidebar"] label,
@@ -596,10 +618,16 @@ _defaults = {
     'lead_comentario': '',
     'lat': 9.9281,    # Alajuela, Costa Rica (default)
     'lon': -84.0858,
+    'lang': 'ES',
+    'units': 'metric',
 }
 for key, val in _defaults.items():
     if key not in st.session_state:
         st.session_state[key] = val
+
+# Shortcuts globales — se actualizan en cada rerun de Streamlit
+_L = st.session_state.get("lang",  "ES")
+_U = st.session_state.get("units", "metric")
 
 
 def buscar_estaciones():
@@ -644,14 +672,42 @@ with st.sidebar:
         </div>
         """, unsafe_allow_html=True)
 
+    # ── Lang / Units selector ────────────────────────────────────────────
+    st.markdown("<div style='height:8px'></div>", unsafe_allow_html=True)
+    _col_lang, _col_units = st.columns(2)
+    with _col_lang:
+        _lang_choice = st.selectbox(
+            "🌐 Idioma",
+            options=["ES", "EN"],
+            index=0 if st.session_state.lang == "ES" else 1,
+            key="lang_select",
+            label_visibility="collapsed",
+            format_func=lambda x: "🇲🇽 Español" if x == "ES" else "🇺🇸 English",
+        )
+        st.session_state.lang = _lang_choice
+    with _col_units:
+        _units_choice = st.selectbox(
+            "📐 Units",
+            options=["metric", "imperial"],
+            index=0 if st.session_state.units == "metric" else 1,
+            key="units_select",
+            label_visibility="collapsed",
+            format_func=lambda x: "m · kWh · lux" if x == "metric" else "ft · kBtu · fc",
+        )
+        st.session_state.units = _units_choice
+    # Shortcuts
+    _L  = st.session_state.lang
+    _U  = st.session_state.units
+    st.markdown("<div style='height:4px'></div>", unsafe_allow_html=True)
+
     # ── 1. Ubicación ──────────────────────────────────────────────────────
-    st.markdown('<div class="eco-sidebar-section">01 — Ubicación y Clima</div>',
+    st.markdown(f'<div class="eco-sidebar-section">{T("sidebar_01", _L)}</div>',
                 unsafe_allow_html=True)
 
-    with st.expander("Buscar ubicación", expanded=False):
+    with st.expander(T("search_location", _L), expanded=False):
         search_name = st.text_input("Ciudad o país", placeholder="Ej: Alajuela, Costa Rica",
                                     label_visibility="collapsed")
-        if st.button("Buscar por nombre", use_container_width=True):
+        if st.button(T("search_by_name", _L), use_container_width=True):
             if search_name:
                 from geopy.geocoders import Nominatim
                 from geopy.exc import GeocoderTimedOut, GeocoderServiceError
@@ -663,43 +719,43 @@ with st.sidebar:
                         st.session_state.lon = loc.longitude
                         buscar_estaciones()
                     else:
-                        st.error("No se pudo localizar ese lugar. Intenta con el nombre en inglés o usa coordenadas.")
+                        st.error(T("err_geocoder_notfound", _L))
                 except GeocoderTimedOut:
-                    st.error("Timeout al conectar con el geocodificador. Intenta de nuevo o ingresa las coordenadas manualmente.")
+                    st.error(T("err_geocoder_timeout", _L))
                 except GeocoderServiceError as e:
                     st.error(f"Servicio de geocodificación no disponible: {e}. Usa las coordenadas manualmente.")
                 except Exception as e:
                     st.error(f"Error inesperado: {type(e).__name__}: {e}")
 
         st.divider()
-        st.session_state.lat = st.number_input("Latitud",  value=st.session_state.lat,  format="%.4f")
-        st.session_state.lon = st.number_input("Longitud", value=st.session_state.lon, format="%.4f")
-        if st.button("Buscar por coordenadas", use_container_width=True):
+        st.session_state.lat = st.number_input(T("latitude", _L),  value=st.session_state.lat,  format="%.4f")
+        st.session_state.lon = st.number_input(T("longitude", _L), value=st.session_state.lon, format="%.4f")
+        if st.button(T("search_by_coords", _L), use_container_width=True):
             buscar_estaciones()
 
     # Estado del clima
     if st.session_state.epw_path:
-        st.markdown('<span class="eco-badge-ok">Clima activo</span>', unsafe_allow_html=True)
+        st.markdown(f'<span class="eco-badge-ok">{T("climate_active", _L)}</span>', unsafe_allow_html=True)
         st.caption(f"{st.session_state.estacion_seleccionada or 'Estación cargada'}")
     else:
-        st.markdown('<span class="eco-badge-info">Sin archivo climático</span>', unsafe_allow_html=True)
+        st.markdown(f'<span class="eco-badge-info">{T("no_climate", _L)}</span>', unsafe_allow_html=True)
 
     # ── 2. Geometría ──────────────────────────────────────────────────────
-    st.markdown('<div class="eco-sidebar-section">02 — Geometría de la Nave</div>',
+    st.markdown(f'<div class="eco-sidebar-section">{T("sidebar_02", _L)}</div>',
                 unsafe_allow_html=True)
 
-    ancho_nave = st.number_input("Ancho (m)",  min_value=10.0, max_value=140.0, value=50.0,  step=1.0)
-    largo_nave = st.number_input("Largo (m)",  min_value=10.0, max_value=140.0, value=100.0, step=1.0)
-    alto_nave  = st.number_input("Altura (m)", min_value=3.0,  max_value=30.0,  value=8.0,   step=0.5)
+    ancho_nave = st.number_input(T("width_m", _L),  min_value=10.0, max_value=140.0, value=50.0,  step=1.0)
+    largo_nave = st.number_input(T("length_m", _L),  min_value=10.0, max_value=140.0, value=100.0, step=1.0)
+    alto_nave  = st.number_input(T("height_m", _L), min_value=3.0,  max_value=30.0,  value=8.0,   step=0.5)
 
     area_nave = ancho_nave * largo_nave
-    st.caption(f"Área de planta: **{area_nave:,.0f} m²**")
+    st.caption(f"{T('floor_area', _L)}: **{fmt_area(area_nave, _U)}**")
     if area_nave > 10_000:
         st.markdown('<span class="eco-badge-warn">Requiere servicio BEM Premium</span>',
                     unsafe_allow_html=True)
 
     # ── 3. Tipo de uso ────────────────────────────────────────────────────
-    st.markdown('<div class="eco-sidebar-section">03 — Tipo de Uso</div>',
+    st.markdown(f'<div class="eco-sidebar-section">{T("sidebar_03", _L)}</div>',
                 unsafe_allow_html=True)
 
     tipo_uso = st.selectbox(
@@ -716,7 +772,7 @@ with st.sidebar:
     )
 
     # ── 4. Domo Sunoptics ─────────────────────────────────────────────────
-    st.markdown('<div class="eco-sidebar-section">04 — Domo Sunoptics®</div>',
+    st.markdown(f'<div class="eco-sidebar-section">{T("sidebar_04", _L)}</div>',
                 unsafe_allow_html=True)
 
     # Toggle capa sencilla / doble — default DGZ
@@ -741,16 +797,16 @@ with st.sidebar:
         index=_idx_filtrado,
     )
     sfr_target = st.slider(
-        "Objetivo SFR (%)", 1.0, 10.0, 3.0, 0.1,
+        T("sfr_target", _L), 1.0, 10.0, 3.0, 0.1,
         help="Skylight-to-Floor Ratio. Límite ASHRAE 90.1: ≤5%.",
     ) / 100.0
 
     datos_domo_sel = df_domos[df_domos['Modelo'] == modelo_sel].iloc[0]
-    with st.expander("Propiedades del domo"):
-        st.write(f"**VLT:** {datos_domo_sel['VLT']:.0%}")
-        st.write(f"**SHGC:** {datos_domo_sel['SHGC']:.2f}")
-        st.write(f"**U-valor:** {datos_domo_sel['U_Value']:.2f} W/m²K")
-        st.write(f"**Tamaño:** {datos_domo_sel['Ancho_m']:.2f} × {datos_domo_sel['Largo_m']:.2f} m")
+    with st.expander(T("skylight_props", _L)):
+        st.write(f"**{T('vlt', _L)}:** {datos_domo_sel['VLT']:.0%}")
+        st.write(f"**{T('shgc', _L)}:** {datos_domo_sel['SHGC']:.2f}")
+        st.write(f"**{T('u_value', _L)}:** {fmt_uvalue(datos_domo_sel['U_Value'], _U)}")
+        st.write(f"**{T('size', _L)}:** {fmt_length(datos_domo_sel['Ancho_m'], _U, 2)} × {fmt_length(datos_domo_sel['Largo_m'], _U, 2)}")
 
     # Estado motor
     st.divider()
@@ -780,10 +836,10 @@ with st.sidebar:
 # 5. TABS — sin emojis, estilo técnico
 # =============================================================================
 tab_config, tab_clima, tab_3d, tab_analitica = st.tabs([
-    "Selección de Clima",
-    "Contexto Climático",
-    "Geometría 3D",
-    "Simulación Energética",
+    T("tab_climate", _L),
+    T("tab_context", _L),
+    T("tab_3d", _L),
+    T("tab_energy", _L),
 ])
 
 
@@ -792,15 +848,15 @@ tab_config, tab_clima, tab_3d, tab_analitica = st.tabs([
 # =============================================================================
 with tab_config:
     page_header(
-        "Selección de Clima",
-        "Localiza el proyecto y descarga el archivo climático TMYx (EPW) de OneBuilding.org"
+        T("tab_climate", _L),
+        "TMYx · OneBuilding.org — EnergyPlus Weather"
     )
 
     col1, col2 = st.columns([2, 1])
 
     with col1:
-        section_title("Mapa interactivo del proyecto")
-        st.caption("Haz clic en el mapa para buscar estaciones climáticas en ese punto.")
+        section_title(T("interactive_map", _L))
+        st.caption(T("map_caption", _L))
 
         m = folium.Map(
             location=[st.session_state.lat, st.session_state.lon], zoom_start=8,
@@ -857,7 +913,7 @@ with tab_config:
                 with st.container():
                     st.markdown(f"**{st_name}**")
                     st.caption(f"Distancia: **{st_dist} km**")
-                    if st.button("Descargar datos climáticos",
+                    if st.button(T("download_climate", _L),
                                  key=f"btn_st_{idx}", use_container_width=True):
                         if url:
                             with st.spinner("Descargando archivo EPW..."):
@@ -885,8 +941,8 @@ with tab_config:
 # =============================================================================
 with tab_clima:
     page_header(
-        "Contexto Climático",
-        "Análisis de las 8,760 horas anuales a partir del archivo EPW descargado"
+        T("tab_context", _L),
+        T("temp_caption", _L)
     )
 
     if st.session_state.clima_data and 'vel_viento' in st.session_state.clima_data:
@@ -906,7 +962,7 @@ with tab_clima:
         col_g1, col_g2 = st.columns(2)
 
         with col_g1:
-            section_title("Rosa de vientos anual")
+            section_title(T("wind_rose", _L))
             df_viento = pd.DataFrame({
                 'dir': clima.get('dir_viento', []),
                 'vel': clima.get('vel_viento', []),
@@ -932,8 +988,8 @@ with tab_clima:
                 st.plotly_chart(fig_rose, use_container_width=True)
 
         with col_g2:
-            section_title("Balance de irradiación")
-            st.caption("Justificación técnica para domos prismáticos de alta difusión.")
+            section_title(T("radiation_balance", _L))
+            st.caption(T("radiation_caption", _L))
             suma_directa = sum(clima.get('rad_directa', [0]))
             suma_difusa  = sum(clima.get('rad_dif', [0]))
             fig_pie = go.Figure(data=[go.Pie(
@@ -952,8 +1008,8 @@ with tab_clima:
             st.plotly_chart(fig_pie, use_container_width=True)
 
         st.divider()
-        section_title("Mapa de calor anual — temperatura de bulbo seco (°C)")
-        st.caption("8,760 horas del año. Picos críticos de calor y demanda HVAC.")
+        section_title(T("temp_heatmap", _L))
+        st.caption(T("temp_caption", _L))
 
         temp_array = np.array(clima.get('temp_seca', np.zeros(8760)))
         if len(temp_array) == 8760:
@@ -977,7 +1033,7 @@ with tab_clima:
             st.plotly_chart(fig_calor, use_container_width=True)
 
         st.divider()
-        section_title("Termodinámica del sitio")
+        section_title(T("thermodynamics", _L))
 
         temp_diaria = np.array([sum(temp_array[i:i+24])/24 for i in range(0, 8760, 24)]) if len(temp_array) == 8760 else np.zeros(365)
         cdd_anual = sum(t - 18.3 for t in temp_diaria if t > 18.3)
@@ -991,7 +1047,7 @@ with tab_clima:
         nubes_array = clima.get('nubes', np.zeros(8760))
         if len(nubes_array) == 8760:
             st.markdown("<div style='height:14px'></div>", unsafe_allow_html=True)
-            section_title("Perfil de nubosidad mensual")
+            section_title(T("cloudiness", _L))
             fechas    = pd.date_range(start="2023-01-01", periods=8760, freq="h")
             df_nubes  = pd.DataFrame({'Fecha': fechas, 'Nubosidad': np.array(nubes_array) * 10})
             df_nubes['Mes'] = df_nubes['Fecha'].dt.month
@@ -1013,7 +1069,7 @@ with tab_clima:
             )
             st.plotly_chart(fig_nubes, use_container_width=True)
     else:
-        st.info("Descarga un archivo climático en la pestaña 'Selección de Clima' para visualizar el análisis bioclimático.")
+        st.info(T("bioclim_download", _L))
 
 
 # =============================================================================
@@ -1021,11 +1077,11 @@ with tab_clima:
 # =============================================================================
 with tab_3d:
     page_header(
-        "Modelo Paramétrico",
-        "Geometría validada para EnergyPlus — domos Sunoptics® distribuidos en cuadrícula ASHRAE"
+        T("tab_3d_title", _L),
+        T("tab_3d_subtitle", _L)
     )
 
-    if st.button("Generar modelo 3D", use_container_width=True, type="primary"):
+    if st.button(T("btn_generate_3d", _L), use_container_width=True, type="primary"):
         with st.spinner("Construyendo geometría..."):
             try:
                 datos_domo = df_domos[df_domos['Modelo'] == modelo_sel].iloc[0]
@@ -1060,11 +1116,11 @@ with tab_3d:
         A, L, H    = ancho_nave, largo_nave, alto_nave
 
         if sfr_pct <= 3.0:
-            st.markdown('<span class="eco-badge-ok">ASHRAE 90.1 — Cumple sin controles (SFR ≤ 3%)</span>', unsafe_allow_html=True)
+            st.markdown(f'<span class="eco-badge-ok">{T("ashrae_compliant", _L)}</span>', unsafe_allow_html=True)
         elif sfr_pct <= 5.0:
-            st.markdown('<span class="eco-badge-warn">ASHRAE 90.1 — Requiere daylighting controls (SFR ≤ 5%)</span>', unsafe_allow_html=True)
+            st.markdown(f'<span class="eco-badge-warn">{T("ashrae_controls", _L)}</span>', unsafe_allow_html=True)
         else:
-            st.markdown('<span class="eco-badge-warn">ASHRAE 90.1 — Excede límite (SFR > 5%)</span>', unsafe_allow_html=True)
+            st.markdown(f'<span class="eco-badge-warn">{T("ashrae_exceeds", _L)}</span>', unsafe_allow_html=True)
 
         render_cards([
             {"label": "Domos generados",     "value": f"{num_domos} uds"},
@@ -1191,12 +1247,12 @@ with tab_3d:
 # =============================================================================
 with tab_analitica:
     page_header(
-        "Simulación Energética",
-        "Motor 1: EnergyPlus 23.2 (DOE) — kWh reales  ·  Motor 2: EPW analítico — Iluminancia + Semáforo normativo"
+        T("tab_energy_title", _L),
+        T("tab_energy_sub", _L)
     )
 
     if not MOTOR_DISPONIBLE:
-        st.error("El motor EnergyPlus no está disponible. Despliega la aplicación en Docker + Google Cloud Run.")
+        st.error(T("err_motor_unavailable", _L))
         st.stop()
 
     if not st.session_state.clima_data:
@@ -1210,7 +1266,7 @@ with tab_analitica:
         st.stop()
 
     if area_nave > 10_000:
-        st.error("Área > 10,000 m². Proyectos de esta escala requieren el servicio BEM Premium.")
+        st.error(T("err_area_too_large", _L))
         st.stop()
 
     clima      = st.session_state.clima_data
@@ -1245,7 +1301,7 @@ with tab_analitica:
         col_btn, col_info = st.columns([1, 2])
         with col_btn:
             ejecutar_diseno = st.button(
-                "Simular mi nave",
+                T("btn_simulate", _L),
                 use_container_width=True,
                 type="primary",
             )
@@ -1313,22 +1369,22 @@ with tab_analitica:
     if st.session_state.diseno_completado and st.session_state.resultado_diseno:
         res = st.session_state.resultado_diseno
 
-        section_title("Resultado energético — tu nave")
+        section_title(T("energy_results", _L))
 
         render_cards([
-            {"label": "Ahorro con tu diseño",
-             "value": f"{res['ahorro_neto']:,.0f} kWh/año",
+            {"label": T("savings_label", _L),
+             "value": fmt_energy(res['ahorro_neto'], _U),
              "delta": f"{res['pct_ahorro']:.1f}% sobre caso base",
              "green": True},
-            {"label": "Consumo base sin domos",
-             "value": f"{res['kwh_base']:,.0f} kWh/año",
+            {"label": T("base_consumption", _L),
+             "value": fmt_energy(res['kwh_base'], _U),
              "delta": "Referencia ASHRAE"},
         ])
         render_cards([
             {"label": f"Domos instalados — SFR {res['sfr_real']:.1f}%",
              "value": f"{res['n_domos']} uds",
-             "delta": f"{res['fc_lux']:.0f} lux promedio zona"},
-            {"label": "Confort visual",
+             "delta": f"{fmt_illuminance(res['fc_lux'], _U, 0)} {T('lux_avg', _L)}"}, 
+            {"label": T("visual_comfort", _L),
              "value": res["semaforo_txt"],
              "delta": "ISO 8995-1 + IES RP-7"},
         ])
@@ -1340,7 +1396,7 @@ with tab_analitica:
 
         # ── CTA Lead Magnet ───────────────────────────────────────────────
         if not st.session_state.lead_capturado:
-            section_title("Curva de optimización completa — SFR 0% → 6%")
+            section_title(T("optimization_curve", _L))
             st.markdown(
                 f"Ingresa tus datos y calculamos la curva completa para tu nave de "
                 f"{ancho_nave:.0f}×{largo_nave:.0f} m. "
@@ -1350,11 +1406,11 @@ with tab_analitica:
 
             with st.form("formulario_leads_cta"):
                 col_f1, col_f2 = st.columns(2)
-                nombre_contacto   = col_f1.text_input("Nombre completo *")
-                empresa_contacto  = col_f2.text_input("Empresa *")
-                correo_contacto   = col_f1.text_input("Correo electrónico *")
-                telefono_contacto = col_f2.text_input("Teléfono (opcional)")
-                comentario        = st.text_area("Comentarios", height=60)
+                nombre_contacto   = col_f1.text_input(T("field_name", _L))
+                empresa_contacto  = col_f2.text_input(T("field_company", _L))
+                correo_contacto   = col_f1.text_input(T("field_email", _L))
+                telefono_contacto = col_f2.text_input(T("field_phone", _L))
+                comentario        = st.text_area(T("field_comments", _L), height=60)
 
                 st.markdown("""
                 <style>
@@ -1382,7 +1438,7 @@ with tab_analitica:
                 </style>
                 """, unsafe_allow_html=True)
                 enviado = st.form_submit_button(
-                    "Descargue Reporte Tecnico Completo",
+                    T("btn_request_report", _L),
                     use_container_width=True,
                 )
 
@@ -1408,7 +1464,7 @@ with tab_analitica:
                         st.session_state.lead_capturado   = True
                         st.rerun()
                 else:
-                    st.error("Completa nombre, empresa y correo para continuar.")
+                    st.error(T("err_lead_incomplete", _L))
 
         # ── Etapa 2 — lanzar Cloud Run Job ───────────────────────────────
         if st.session_state.lead_capturado and not st.session_state.bg_lanzado:
@@ -1423,7 +1479,7 @@ with tab_analitica:
                     st.session_state.lead_correo,
                 )
             if not gcs_uri:
-                st.error("No se pudo preparar el archivo climático. Intenta nuevamente.")
+                st.error(T("err_epw_prep", _L))
                 st.stop()
 
             # Subir sql_base a GCS si existe (reutiliza SFR=0 de Etapa 1)
@@ -1452,6 +1508,8 @@ with tab_analitica:
                 "modelo_domo":  modelo_sel,
                 "ciudad":       md.get("ciudad", st.session_state.estacion_seleccionada or ""),
                 "pais":         md.get("pais", ""),
+                "lang":         _L,
+                "units":        _U,
             }
             _lead_job = {
                 "nombre":     st.session_state.lead_nombre,
@@ -1470,7 +1528,7 @@ with tab_analitica:
                 st.rerun()
             else:
                 st.error(f"No se pudo lanzar el análisis: {msg}")
-                st.info("Intenta nuevamente o contáctanos en ingenieria@ecoconsultor.com")
+                st.info(T("err_contact_us", _L))
 
         # ── Mensaje de confirmación post-lanzamiento ──────────────────────
         if st.session_state.bg_lanzado:
@@ -1498,14 +1556,14 @@ with tab_analitica:
 
             render_cards([
                 {"label": "Estado",        "value": "Simulando en nube",  "delta": "7 simulaciones EnergyPlus", "green": True},
-                {"label": "Entrega",       "value": f"~{max(20, min(40, int(ancho_nave*largo_nave/1000)*3 + 20))} minutos", "delta": f"A: {st.session_state.lead_correo}"},
+                {"label": T("delivery_label", _L),       "value": f"~{max(20, min(40, int(ancho_nave*largo_nave/1000)*3 + 20))} minutos", "delta": f"A: {st.session_state.lead_correo}"},
                 {"label": "Motor",         "value": "EnergyPlus 23.2",    "delta": "DOE oficial"},
-                {"label": "Análisis",      "value": "SFR 0% → 6%",       "delta": "Curva de optimización completa"},
+                {"label": T("analysis_label", _L),      "value": T("analysis_value", _L), "delta": T("analysis_delta", _L)},
             ])
 
         # Reset
         st.divider()
-        if st.button("Nueva simulación (limpiar resultados)"):
+        if st.button(T("btn_new_sim", _L)):
             for k in ["resultado_diseno","resultado_motor","diseno_completado",
                       "calculo_completado","lead_capturado","bg_lanzado",
                       "bg_thread_name","lead_nombre","lead_empresa",
