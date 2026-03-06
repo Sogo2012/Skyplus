@@ -1195,7 +1195,7 @@ def calcular_curva_sfr(config, callback=None, sql_base_existente=None):
     except Exception as e:
         return {"error": str(e), "tabla": None, "figura": None}
 
-    _cb(n_sims, n_sims, "Calculando ahorros y semáforo...")
+    _cb(n_sims, n_sims, ("Calculating savings & compliance..." if _L=="EN" else "Calculando ahorros y semáforo..."))
 
     # Split-Flux
     base           = next(r for r in resultados_curva if r["sfr_pct"] == 0)
