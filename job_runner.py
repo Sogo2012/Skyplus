@@ -76,7 +76,7 @@ def leer_config():
 # =============================================================================
 # VISTA ISOMÉTRICA
 # =============================================================================
-def generar_isometrico(ancho, largo, alto, num_domos, sfr_real, domo_ancho, domo_largo):
+def generar_isometrico(ancho, largo, alto, num_domos, sfr_real, domo_ancho, domo_largo, lang="ES"):
     fig = plt.figure(figsize=(8, 5), facecolor='white')
     ax  = fig.add_subplot(111, projection='3d', facecolor='white')
 
@@ -123,14 +123,26 @@ def generar_isometrico(ancho, largo, alto, num_domos, sfr_real, domo_ancho, domo
     ax.set_xlim(0, ancho)
     ax.set_ylim(0, largo)
     ax.set_zlim(0, alto * 1.5)
-    ax.set_xlabel("Ancho (m)", fontsize=8)
-    ax.set_ylabel("Largo (m)", fontsize=8)
-    ax.set_zlabel("Altura (m)", fontsize=8)
+
+    _M2FT = 3.28084
+    if lang == "EN":
+        _aw = ancho * _M2FT; _al = largo * _M2FT; _ah = alto * _M2FT
+        ax.set_xlabel(f"Width (ft)", fontsize=8)
+        ax.set_ylabel(f"Length (ft)", fontsize=8)
+        ax.set_zlabel(f"Height (ft)", fontsize=8)
+        ax.set_title(
+            f"Warehouse {_aw:.0f}×{_al:.0f}×{_ah:.0f} ft — {num_domos} skylights (SFR {sfr_real*100:.1f}%)",
+            fontsize=9, color='#003C52', pad=10,
+        )
+    else:
+        ax.set_xlabel("Ancho (m)", fontsize=8)
+        ax.set_ylabel("Largo (m)", fontsize=8)
+        ax.set_zlabel("Altura (m)", fontsize=8)
+        ax.set_title(
+            f"Nave {ancho:.0f}×{largo:.0f}×{alto:.0f} m — {num_domos} domos (SFR {sfr_real*100:.1f}%)",
+            fontsize=9, color='#003C52', pad=10,
+        )
     ax.view_init(elev=25, azim=-60)
-    ax.set_title(
-        f"Nave {ancho:.0f}×{largo:.0f}×{alto:.0f} m — {num_domos} domos (SFR {sfr_real*100:.1f}%)",
-        fontsize=9, color='#003C52', pad=10,
-    )
     ax.grid(True, alpha=0.2)
 
     buf = io.BytesIO()
@@ -210,20 +222,43 @@ def generar_heatmap_luxes(epw_path, sfr_pct, vlt, tipo_uso, lang="ES"):
 # =============================================================================
 # GRÁFICA CURVA SFR
 # =============================================================================
-def generar_grafica_curva(df_curva, sfr_opt, sfr_dual, tipo_uso, ancho, largo):
+def generar_grafica_curva(df_curva, sfr_opt, sfr_dual, tipo_uso, ancho, largo, lang="ES"):
     sfrs  = [r["sfr_pct"]  for r in df_curva]
     netos = [r.get("neto_kwh", 0) for r in df_curva]
     luces = [r.get("ah_luz", 0)   for r in df_curva]
     cools = [r.get("pen_cool", 0) for r in df_curva]
     luxes = [r.get("fc_lux", 0)   for r in df_curva]
 
+    _M2FT = 3.28084
+    if lang == "EN":
+        _lbl_net   = "Net savings (kWh/yr)"
+        _lbl_light = "Lighting savings (kWh/yr)"
+        _lbl_cool  = "Cooling penalty (kWh/yr)"
+        _lbl_lux   = "Avg. illuminance (lux)"
+        _lbl_y1    = "Energy (kWh/yr)"
+        _lbl_y2    = "Average illuminance (lux)"
+        _lbl_x     = "SFR (%)"
+        _aw = ancho * _M2FT; _al = largo * _M2FT
+        _lbl_title = f"SkyPlus Optimization Curve — {tipo_uso} {_aw:.0f}×{_al:.0f} ft"
+        _lbl_dual  = f"Dual optimum SFR={sfr_dual}%"
+    else:
+        _lbl_net   = "Ahorro neto (kWh/año)"
+        _lbl_light = "Ahorro iluminación (kWh/año)"
+        _lbl_cool  = "Penalización cooling (kWh/año)"
+        _lbl_lux   = "Iluminancia (lux)"
+        _lbl_y1    = "Energía (kWh/año)"
+        _lbl_y2    = "Iluminancia promedio (lux)"
+        _lbl_x     = "SFR (%)"
+        _lbl_title = f"Curva de Optimización SkyPlus — {tipo_uso} {ancho:.0f}×{largo:.0f}m"
+        _lbl_dual  = f"Óptimo Dual SFR={sfr_dual}%"
+
     fig, ax1 = plt.subplots(figsize=(10, 5), facecolor='white')
     ax2 = ax1.twinx()
 
-    ax1.plot(sfrs, netos, 'o-',  color='#2ecc71', lw=2.5, label='Ahorro neto (kWh/año)', zorder=5)
-    ax1.plot(sfrs, luces, 's--', color='#3498db', lw=1.5, label='Ahorro iluminación')
-    ax1.plot(sfrs, cools, '^--', color='#e74c3c', lw=1.5, label='Penalización cooling')
-    ax2.plot(sfrs, luxes, 'd:',  color='#9b59b6', lw=1.5, label='Iluminancia (lux)')
+    ax1.plot(sfrs, netos, 'o-',  color='#2ecc71', lw=2.5, label=_lbl_net,   zorder=5)
+    ax1.plot(sfrs, luces, 's--', color='#3498db', lw=1.5, label=_lbl_light)
+    ax1.plot(sfrs, cools, '^--', color='#e74c3c', lw=1.5, label=_lbl_cool)
+    ax2.plot(sfrs, luxes, 'd:',  color='#9b59b6', lw=1.5, label=_lbl_lux)
 
     if sfr_opt and sfr_opt in sfrs:
         idx_o = sfrs.index(sfr_opt)
@@ -234,13 +269,12 @@ def generar_grafica_curva(df_curva, sfr_opt, sfr_dual, tipo_uso, ancho, largo):
         idx_d = sfrs.index(sfr_dual)
         ax1.axvline(x=sfr_dual, color='#f39c12', ls='--', alpha=0.6)
         ax1.plot(sfr_dual, netos[idx_d], 'D', color='#f39c12', ms=10, zorder=6,
-                 label=f'Óptimo Dual SFR={sfr_dual}%')
+                 label=_lbl_dual)
 
-    ax1.set_xlabel("SFR (%)", fontsize=10)
-    ax1.set_ylabel("Energía (kWh/año)", fontsize=10)
-    ax2.set_ylabel("Iluminancia promedio (lux)", fontsize=10)
-    ax1.set_title(f"Curva de Optimización SkyPlus — {tipo_uso} {ancho:.0f}×{largo:.0f}m",
-                  fontsize=11, color='#003C52')
+    ax1.set_xlabel(_lbl_x, fontsize=10)
+    ax1.set_ylabel(_lbl_y1, fontsize=10)
+    ax2.set_ylabel(_lbl_y2, fontsize=10)
+    ax1.set_title(_lbl_title, fontsize=11, color='#003C52')
     ax1.set_xticks(sfrs)
     ax1.set_xticklabels([f"{s}%" for s in sfrs])
     ax1.grid(True, alpha=0.2)
@@ -581,17 +615,31 @@ def generar_pdf(config, resultado, lead):
     # PÁG 2 — GEOMETRÍA
     # =========================================================================
     story.append(Paragraph(T("pdf_geometry_title", _L), s_h1))
-    story.append(Paragraph(
-        f"Distribución matricial de <b>{n_domos} domos Sunoptics®</b> sobre una nave de "
-        f"<b>{ancho:.0f}×{largo:.0f}×{alto:.0f} m</b> ({ancho*largo:,.0f} m²). "
-        f"Superficie de Fenestración en Techo (SFR) real: <b>{sfr_real*100:.1f}%</b>.",
-        s_body,
-    ))
+    _M2FT = 3.28084
+    if _L == "EN":
+        _aw = ancho * _M2FT; _al = largo * _M2FT; _ah = alto * _M2FT
+        _area_disp = f"{_aw * _al:,.0f} ft²"
+        _dims_disp = f"{_aw:.0f}×{_al:.0f}×{_ah:.0f} ft"
+        _geo_desc = (
+            f"Matrix distribution of <b>{n_domos} Sunoptics® skylights</b> across a "
+            f"<b>{_dims_disp}</b> ({_area_disp}) warehouse. "
+            f"Actual Skylight-to-Floor Ratio (SFR): <b>{sfr_real*100:.1f}%</b>."
+        )
+    else:
+        _dims_disp = f"{ancho:.0f}×{largo:.0f}×{alto:.0f} m"
+        _area_disp = f"{ancho*largo:,.0f} m²"
+        _geo_desc = (
+            f"Distribución matricial de <b>{n_domos} domos Sunoptics®</b> sobre una nave de "
+            f"<b>{_dims_disp}</b> ({_area_disp}). "
+            f"Superficie de Fenestración en Techo (SFR) real: <b>{sfr_real*100:.1f}%</b>."
+        )
+    story.append(Paragraph(_geo_desc, s_body))
     story.append(Spacer(1, 0.3*cm))
     try:
         iso = generar_isometrico(ancho, largo, alto, n_domos, sfr_real,
                                  config.get("domo_ancho_m", 1.328),
-                                 config.get("domo_largo_m", 2.547))
+                                 config.get("domo_largo_m", 2.547),
+                                 lang=_L)
         story.append(RLImage(io.BytesIO(iso), width=15*cm, height=10*cm, kind='proportional'))
     except Exception as e:
         story.append(Paragraph(f"[Vista isométrica no disponible: {e}]", s_small))
@@ -627,13 +675,22 @@ def generar_pdf(config, resultado, lead):
     # PÁG 3 — ANÁLISIS ENERGÉTICO
     # =========================================================================
     story.append(Paragraph(T("pdf_energy_title", _L), s_h1))
-    story.append(Paragraph(
-        f"Se corrieron <b>7 simulaciones EnergyPlus 23.2</b> variando el SFR de 0% a 6% "
-        f"para la nave de {ancho:.0f}×{largo:.0f} m en <b>{ciudad}, {pais}</b>. "
-        "El modelo evalúa simultáneamente el ahorro en iluminación artificial y la "
-        "penalización por carga térmica solar.",
-        s_body,
-    ))
+    if _L == "EN":
+        _aw = ancho * _M2FT; _al = largo * _M2FT
+        _energy_intro = (
+            f"<b>7 EnergyPlus 23.2 simulations</b> were run sweeping SFR from 0% to 6% "
+            f"for the {_aw:.0f}×{_al:.0f} ft warehouse in <b>{ciudad}, {pais}</b>. "
+            "The model simultaneously evaluates artificial lighting savings and the "
+            "thermal penalty from solar heat gain through the skylights."
+        )
+    else:
+        _energy_intro = (
+            f"Se corrieron <b>7 simulaciones EnergyPlus 23.2</b> variando el SFR de 0% a 6% "
+            f"para la nave de {ancho:.0f}×{largo:.0f} m en <b>{ciudad}, {pais}</b>. "
+            "El modelo evalúa simultáneamente el ahorro en iluminación artificial y la "
+            "penalización por carga térmica solar."
+        )
+    story.append(Paragraph(_energy_intro, s_body))
     story.append(Spacer(1, 0.3*cm))
 
     # 4 KPI cards
@@ -662,7 +719,7 @@ def generar_pdf(config, resultado, lead):
 
     # Gráfica
     try:
-        curva = generar_grafica_curva(df_curva, sfr_opt, sfr_dual, tipo_uso, ancho, largo)
+        curva = generar_grafica_curva(df_curva, sfr_opt, sfr_dual, tipo_uso, ancho, largo, lang=_L)
         story.append(RLImage(io.BytesIO(curva), width=15.5*cm, height=8*cm, kind='proportional'))
     except Exception as e:
         story.append(Paragraph(f"[Gráfica no disponible: {e}]", s_small))
@@ -711,12 +768,19 @@ def generar_pdf(config, resultado, lead):
     # PÁG 4 — CONFORT VISUAL + RECOMENDACIÓN
     # =========================================================================
     story.append(Paragraph(T("pdf_comfort_title", _L), s_h1))
-    story.append(Paragraph(
-        f"Mapa horario de iluminancia interior promedio para <b>SFR={sfr_show}%</b>. "
-        "Las zonas rojas indican períodos donde la luz natural supera el setpoint normativo, "
-        "eliminando totalmente la necesidad de iluminación artificial.",
-        s_body,
-    ))
+    if _L == "EN":
+        _comfort_intro = (
+            f"Hourly map of average interior illuminance for <b>SFR={sfr_show}%</b>. "
+            "Red zones indicate periods where daylight exceeds the normative setpoint, "
+            "completely eliminating the need for artificial lighting."
+        )
+    else:
+        _comfort_intro = (
+            f"Mapa horario de iluminancia interior promedio para <b>SFR={sfr_show}%</b>. "
+            "Las zonas rojas indican períodos donde la luz natural supera el setpoint normativo, "
+            "eliminando totalmente la necesidad de iluminación artificial."
+        )
+    story.append(Paragraph(_comfort_intro, s_body))
     story.append(Spacer(1, 0.3*cm))
 
     epw_path_local = config.get("epw_path","")
@@ -811,9 +875,34 @@ def enviar_correo(destinatario, nombre, pdf_bytes, config):
         msg['From']    = f"SkyPlus — ECO Consultor <{GMAIL_USER}>"
         msg['To']      = destinatario
         msg['Cc']      = GMAIL_USER
-        msg['Subject'] = f"Reporte SkyPlus — Nave {ancho:.0f}×{largo:.0f}m {tipo_uso}"
+        _L_mail = config.get("lang", "ES")
+        _M2FT   = 3.28084
+        if _L_mail == "EN":
+            _aw = ancho * _M2FT; _al = largo * _M2FT
+            msg['Subject'] = f"SkyPlus Report — {_aw:.0f}×{_al:.0f} ft {tipo_uso}"
+        else:
+            msg['Subject'] = f"Reporte SkyPlus — Nave {ancho:.0f}×{largo:.0f}m {tipo_uso}"
 
-        cuerpo = f"""Estimado/a {nombre},
+        _L_mail = config.get("lang", "ES")
+        if _L_mail == "EN":
+            cuerpo = f"""Dear {nombre},
+
+Please find attached your SkyPlus Technical Report with the complete daylighting optimization analysis for your industrial warehouse.
+
+The report includes:
+  • Site bioclimatic analysis
+  • 3D warehouse model with Sunoptics® skylight distribution
+  • SFR optimization curve 0%→6% (7 EnergyPlus simulations)
+  • Design recommendation with normative compliance indicator
+  • Daylight availability heatmap
+
+Engine: EnergyPlus 23.2 (DOE) · Standards: ISO 8995-1 / IES RP-7
+
+Best regards,
+ECO Consultor Engineering Team
+ingenieria@ecoconsultor.com"""
+        else:
+            cuerpo = f"""Estimado/a {nombre},
 
 Adjunto encontrará su Reporte Técnico SkyPlus con el análisis completo de optimización
 de iluminación natural para su nave industrial.
