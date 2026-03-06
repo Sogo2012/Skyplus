@@ -631,7 +631,7 @@ _U = st.session_state.get("units", "metric")
 
 
 def buscar_estaciones():
-    with st.spinner("Consultando base de datos climática..."):
+    with st.spinner(T("spinner_climate", _L)):
         df = obtener_estaciones_cercanas(st.session_state.lat, st.session_state.lon)
         st.session_state.df_cercanas = df
         if df is None or df.empty:
@@ -931,7 +931,7 @@ with tab_config:
                     if st.button(T("download_climate", _L),
                                  key=f"btn_st_{idx}", use_container_width=True):
                         if url:
-                            with st.spinner("Descargando archivo EPW..."):
+                            with st.spinner(T("spinner_epw", _L)):
                                 path = descargar_y_extraer_epw(url)
                                 if path:
                                     try:
@@ -967,7 +967,7 @@ with tab_clima:
         render_cards([
             {"label": T("latitude", _L),  "value": f"{md.get('lat', st.session_state.lat):.1f}°N"},
             {"label": T("longitude", _L), "value": f"{md.get('lon', st.session_state.lon):.1f}°W"},
-            {"label": "Elevación",               "value": f"{int(round(md.get('elevacion', 0)))} m"},
+            {"label": T("elevation", _L),        "value": f"{int(round(md.get('elevacion', 0)))} m"},
             {"label": T("rel_humidity", _L),     "value": f"{round(sum(clima.get('hum_relativa',[0]))/8760)} %"},
             {"label": T("wind_speed", _L),       "value": f"{round(sum(clima.get('vel_viento',[0]))/8760, 1)} m/s"},
         ])
@@ -993,9 +993,9 @@ with tab_clima:
                 bins_vel   = [0, 2, 4, 6, 8, 20]
                 labels_vel = ['0–2 m/s','2–4 m/s','4–6 m/s','6–8 m/s','>8 m/s']
                 df_viento['Vel_Cat'] = pd.cut(df_viento['vel'], bins=bins_vel, labels=labels_vel)
-                df_rose = df_viento.groupby(['Dir_Cat','Vel_Cat']).size().reset_index(name='Frecuencia')
+                df_rose = df_viento.groupby(['Dir_Cat','Vel_Cat']).size().reset_index(name='Frequency')
                 fig_rose = px.bar_polar(
-                    df_rose, r="Frecuencia", theta="Dir_Cat", color="Vel_Cat",
+                    df_rose, r="Frequency", theta="Dir_Cat", color="Vel_Cat",
                     color_discrete_sequence=["#B8D4E0","#7AAFC4","#3E8CA8","#003C52","#001F2B"],
                     template="plotly_white",
                 )
@@ -1008,7 +1008,7 @@ with tab_clima:
             suma_directa = sum(clima.get('rad_directa', [0]))
             suma_difusa  = sum(clima.get('rad_dif', [0]))
             fig_pie = go.Figure(data=[go.Pie(
-                labels=['Radiación directa', 'Radiación difusa'],
+                labels=[T('rad_direct',_L), T('rad_diffuse',_L)],
                 values=[suma_directa, suma_difusa],
                 hole=.45,
                 marker_colors=[ECO_AZUL, "#7AAFC4"],
@@ -1030,16 +1030,16 @@ with tab_clima:
         if len(temp_array) == 8760:
             temp_matriz = temp_array.reshape(365, 24).T
             fig_calor = go.Figure(data=go.Heatmap(
-                z=temp_matriz,
+                z=(temp_matriz * 9/5 + 32) if _U == 'imperial' else temp_matriz,
                 x=list(range(1, 366)),
                 y=list(range(0, 24)),
                 colorscale='RdYlBu_r',
-                colorbar=dict(title="°C", titleside="right"),
-                hovertemplate="Día %{x} · Hora %{y}:00 · %{z:.1f} °C<extra></extra>",
+                colorbar=dict(title=T("temp_unit",_L), titleside="right"),
+                hovertemplate=("Day %{x} · Hour %{y}:00 · %{z:.1f} °F<extra></extra>" if _L=="EN" else "Día %{x} · Hora %{y}:00 · %{z:.1f} °C<extra></extra>"),
             ))
             fig_calor.update_layout(
                 xaxis_title=(T("days_of_year", _L)),
-                yaxis_title="Hora del día",
+                yaxis_title=T("hour_of_day", _L),
                 yaxis=dict(tickmode='linear', tick0=0, dtick=4),
                 margin=dict(t=10, b=30, l=40, r=20),
                 height=380,
@@ -1055,8 +1055,8 @@ with tab_clima:
         hdd_anual = sum(18.3 - t for t in temp_diaria if t < 18.3)
 
         render_cards([
-            {"label": "Grados día refrigeración (CDD)", "value": f"{int(cdd_anual):,}", "delta": "Demanda A/C anual"},
-            {"label": "Grados día calefacción (HDD)",   "value": f"{int(hdd_anual):,}", "delta": "Demanda calefacción"},
+            {"label": T("cdd_label", _L), "value": f"{int(cdd_anual):,}", "delta": T("cdd_delta", _L)},
+            {"label": T("hdd_label", _L), "value": f"{int(hdd_anual):,}", "delta": T("hdd_delta", _L)},
         ])
 
         nubes_array = clima.get('nubes', np.zeros(8760))
@@ -1080,7 +1080,7 @@ with tab_clima:
                 textfont=dict(size=10),
             )])
             fig_nubes.update_layout(
-                yaxis_title="% Cielo cubierto",
+                yaxis_title=T("sky_cover_pct", _L),
                 yaxis=dict(range=[0, 100]),
                 template="plotly_white",
                 height=320,
@@ -1101,7 +1101,7 @@ with tab_3d:
     )
 
     if st.button(T("btn_generate_3d", _L), use_container_width=True, type="primary"):
-        with st.spinner("Construyendo geometría..."):
+        with st.spinner(T("spinner_3d", _L)):
             try:
                 datos_domo = df_domos[df_domos['Modelo'] == modelo_sel].iloc[0]
                 try:
@@ -1152,7 +1152,7 @@ with tab_3d:
         ])
 
         st.divider()
-        mostrar_sol = st.toggle("Mostrar bóveda solar / Sunpath", value=False)
+        mostrar_sol = st.toggle(T("sunpath_toggle", _L), value=False)
 
         fig3d = go.Figure()
         COL_PARED = "rgba(255,255,0,0.20)"    # Amarillo EnergyPlus #FFFF00
@@ -1174,9 +1174,9 @@ with tab_3d:
 
         # Techo y paredes como superficies
         for verts, col, nom, show in [
-            ([(0,0,0),(A,0,0),(A,L,0),(0,L,0)], COL_PISO,  "Piso",   True),
-            ([(0,0,H),(A,0,H),(A,L,H),(0,L,H)], COL_TECHO, "Techo",  True),
-            ([(0,0,0),(A,0,0),(A,0,H),(0,0,H)], COL_PARED, "Paredes",True),
+            ([(0,0,0),(A,0,0),(A,L,0),(0,L,0)], COL_PISO,  T("floor_3d",_L),  True),
+            ([(0,0,H),(A,0,H),(A,L,H),(0,L,H)], COL_TECHO, T("roof_3d",_L),   True),
+            ([(0,0,0),(A,0,0),(A,0,H),(0,0,H)], COL_PARED, T("walls_3d",_L),  True),
             ([(0,L,0),(A,L,0),(A,L,H),(0,L,H)], COL_PARED, "",       False),
             ([(0,0,0),(0,L,0),(0,L,H),(0,0,H)], COL_PARED, "",       False),
             ([(A,0,0),(A,L,0),(A,L,H),(A,0,H)], COL_PARED, "",       False),
@@ -1234,10 +1234,10 @@ with tab_3d:
                 if sx:
                     fig3d.add_trace(go.Scatter3d(x=sx,y=sy,z=sz,mode='lines+markers',
                         line=dict(color=mcolor,width=2),marker=dict(size=2,color=mcolor),
-                        name=f"Sunpath {mnombre}",showlegend=True))
+                        name=f"Sunpath {mnombre if _L=='EN' else mnombre}",showlegend=True))
             fig3d.add_trace(go.Scatter3d(x=[cx_nav],y=[cy_nav],z=[H+radio],mode='markers',
                 marker=dict(size=12,color=COL_SOL,line=dict(color='orange',width=2)),
-                name='Cénit solar',showlegend=True))
+                name=T('solar_zenith',_L),showlegend=True))
 
         fig3d.update_layout(
             scene=dict(
@@ -1261,10 +1261,9 @@ with tab_3d:
         st.plotly_chart(fig3d, use_container_width=True)
 
     else:
-        st.markdown("""
+        st.markdown(f"""
         <div class="eco-disclaimer">
-            Configura la nave en el panel lateral y presiona <strong>Generar modelo 3D</strong>.<br>
-            El modelo es interactivo — rota, zoom y orbita con el mouse.
+            {T("configure_prompt", _L)}
         </div>
         """, unsafe_allow_html=True)
 
@@ -1332,21 +1331,20 @@ with tab_analitica:
         with col_info:
             st.markdown(f"""
             <div class="eco-disclaimer">
-                Compara tu nave <strong>sin domos vs con SFR={sfr_target*100:.0f}%</strong>.<br>
-                2 simulaciones EnergyPlus · estimado <strong>2–4 minutos</strong>.
+                {T("compare_prompt", _L).format(sfr=f"{sfr_target*100:.0f}")}
             </div>
             """, unsafe_allow_html=True)
 
         if ejecutar_diseno:
-            barra      = st.progress(0, text="Preparando motor...")
+            barra      = st.progress(0, text=T("spinner_motor", _L))
             status_box = st.empty()
 
             facts = [
-                "Los domos prismáticos Sunoptics difunden la luz hasta 3× más que una ventana plana.",
-                "La iluminación representa hasta el 40% del consumo eléctrico en bodegas industriales.",
-                "Cada kWh ahorrado evita ~0.45 kg de CO₂ en la red eléctrica.",
-                "El SFR óptimo depende de la geometría, clima y uso específico de la nave.",
-                "ASHRAE 90.1 permite hasta SFR=5% con controles de daylighting automáticos.",
+                T("fact_prismatic",  _L),
+                T("fact_lighting",   _L),
+                T("fact_co2",        _L),
+                T("fact_sfr",        _L),
+                T("fact_ashrae",     _L),
             ]
             fact_box = st.info(facts[0])
 
@@ -1398,15 +1396,15 @@ with tab_analitica:
         render_cards([
             {"label": T("savings_label", _L),
              "value": fmt_energy(res['ahorro_neto'], _U),
-             "delta": f"{res['pct_ahorro']:.1f}% sobre caso base",
+             "delta": T("pct_above_base",_L).format(pct=f"{res['pct_ahorro']:.1f}"),
              "green": True},
             {"label": T("base_consumption", _L),
              "value": fmt_energy(res['kwh_base'], _U),
-             "delta": "Referencia ASHRAE"},
+             "delta": T("ashrae_ref",_L)},
         ])
         render_cards([
-            {"label": f"Domos instalados — SFR {res['sfr_real']:.1f}%",
-             "value": f"{res['n_domos']} uds",
+            {"label": T("skylights_sfr_label",_L).format(sfr=f"{res['sfr_real']:.1f}"),
+             "value": f"{res['n_domos']} {T('units_count',_L)}",
              "delta": f"{fmt_illuminance(res['fc_lux'], _U, 0)} {T('lux_avg', _L)}"}, 
             {"label": T("visual_comfort", _L),
              "value": res["semaforo_txt"],
@@ -1497,7 +1495,7 @@ with tab_analitica:
             md    = clima.get("metadata", {})
 
             # Subir EPW a GCS para que el Job pueda accederlo
-            with st.spinner("Preparando análisis..."):
+            with st.spinner(T("spinner_prep", _L)):
                 gcs_uri = upload_epw_to_gcs(
                     st.session_state.epw_path,
                     st.session_state.lead_correo,
@@ -1511,7 +1509,7 @@ with tab_analitica:
                         if st.session_state.resultado_diseno else None
             gcs_sql_base = None
             if _sql_base and os.path.exists(_sql_base):
-                with st.spinner("Optimizando simulación..."):
+                with st.spinner(T("spinner_opt", _L)):
                     gcs_sql_base = upload_epw_to_gcs(
                         _sql_base,
                         st.session_state.lead_correo + "_sql",
@@ -1565,21 +1563,20 @@ with tab_analitica:
                 margin: 16px 0;
             ">
                 <div style="font-size:1rem; font-weight:700; color:#4A7C2F; margin-bottom:6px;">
-                    Análisis paramétrico iniciado
+                    {T("processing_title", _L)}
                 </div>
                 <div style="font-size:0.85rem; color:#4A5568; line-height:1.7;">
-                    Estamos calculando la curva de optimización completa (SFR 0%→6%) para
+                    {T("processing_mins_tmpl", _L).format(mins=max(20, min(40, int(ancho_nave*largo_nave/1000)*3 + 20)))}
                     <strong>{st.session_state.lead_empresa}</strong>.<br>
-                    El reporte técnico PDF llegará a
-                    <strong>{st.session_state.lead_correo}</strong>
-                    en aproximadamente <strong>{max(20, min(40, int(ancho_nave*largo_nave/1000)*3 + 20))} minutos</strong>.<br><br>
-                    Puedes cerrar esta ventana — el análisis continuará en la nube.
+                    {T("report_to_email", _L)}
+                    <strong>{st.session_state.lead_correo}</strong>.<br><br>
+                    {T("can_close_window", _L)}
                 </div>
             </div>
             """, unsafe_allow_html=True)
 
             render_cards([
-                {"label": "Estado",        "value": "Simulando en nube",  "delta": "7 simulaciones EnergyPlus", "green": True},
+                {"label": T("status_label",_L), "value": T("simulating_cloud",_L), "delta": "7 × EnergyPlus 23.2", "green": True},
                 {"label": T("delivery_label", _L),       "value": f"~{max(20, min(40, int(ancho_nave*largo_nave/1000)*3 + 20))} {'min'}", "delta": f"A: {st.session_state.lead_correo}"},
                 {"label": "Motor",         "value": "EnergyPlus 23.2",    "delta": "DOE oficial"},
                 {"label": T("analysis_label", _L),      "value": T("analysis_value", _L), "delta": T("analysis_delta", _L)},
