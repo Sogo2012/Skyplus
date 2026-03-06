@@ -858,7 +858,8 @@ def configurar_proyecto(ancho=50.0, largo=100.0, altura=8.0,
                         domo_u=DOMO_U_DEFAULT, domo_ancho_m=DOMO_ANCHO_M,
                         domo_largo_m=DOMO_LARGO_M,
                         cop_cooling=COP_COOLING_DEFAULT, eff_heating=EFF_HEATING_DEFAULT,
-                        carpeta_sims=None):
+                        carpeta_sims=None,
+                        lang="ES", units="metric"):
     """
     Valida y empaqueta parámetros del proyecto.
     Retorna dict de configuración para pasar a simular_caso_diseno() o calcular_curva_sfr().
@@ -886,6 +887,8 @@ def configurar_proyecto(ancho=50.0, largo=100.0, altura=8.0,
         "cop_cooling": cop_cooling, "eff_heating": eff_heating,
         "carpeta_sims": carpeta_sims,
         "zona_climatica": _detectar_zona_climatica(epw_path),
+        "lang": lang,
+        "units": units,
     }
 
 
