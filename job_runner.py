@@ -26,6 +26,7 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 
 from reportlab.lib.pagesizes import A4
+from i18n import T, fmt_length, fmt_area, fmt_illuminance, fmt_energy, fmt_uvalue, fmt_dims, get_compliance_label, SETPOINTS, CONVERSION
 from reportlab.lib.units import cm
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.colors import HexColor, white
@@ -395,6 +396,8 @@ def generar_pdf(config, resultado, lead):
             break
 
     buf = io.BytesIO()
+    _L = config.get("lang", "ES")
+    _U = config.get("units", "metric")
 
     # Márgenes con espacio para header (2.8cm top) y footer (1.5cm bottom)
     doc = SimpleDocTemplate(
@@ -437,8 +440,8 @@ def generar_pdf(config, resultado, lead):
     # =========================================================================
     # Banda azul de título
     story.append(Spacer(1, 0.3*cm))
-    story.append(Paragraph("Reporte Técnico", s_titulo))
-    story.append(Paragraph("SkyPlus® — Optimización de Iluminación Natural con Domos Sunoptics®", s_subtitulo))
+    story.append(Paragraph(T("pdf_title", _L), s_titulo))
+    story.append(Paragraph(T("pdf_subtitle", _L), s_subtitulo))
     story.append(HRFlowable(width="100%", thickness=2, color=ECO_VERDE, spaceAfter=14))
 
     # Tarjetas KPI de portada
@@ -551,7 +554,7 @@ def generar_pdf(config, resultado, lead):
     # Normativa
     story.append(Spacer(1, 0.5*cm))
     story.append(Paragraph(
-        "<b>Normativa aplicada:</b>  ISO 8995-1:2002 (CIE S 008)  ·  ANSI/IES RP-7-21  ·  "
+        T("pdf_normativa", _L) if False else "<b>Normativa aplicada:</b>  ISO 8995-1:2002 (CIE S 008)  ·  ANSI/IES RP-7-21  ·  "
         "UDI Mardaljevic 2006  ·  ASHRAE 90.1-2022  ·  EnergyPlus 23.2 DOE",
         s('norm', fontSize=7.5, textColor=ECO_GRIS, backColor=ECO_CLARO,
           borderPadding=5, leading=11)
@@ -561,7 +564,7 @@ def generar_pdf(config, resultado, lead):
     # =========================================================================
     # PÁG 2 — GEOMETRÍA
     # =========================================================================
-    story.append(Paragraph("Modelo Geométrico de la Nave", s_h1))
+    story.append(Paragraph(T("pdf_geometry_title", _L), s_h1))
     story.append(Paragraph(
         f"Distribución matricial de <b>{n_domos} domos Sunoptics®</b> sobre una nave de "
         f"<b>{ancho:.0f}×{largo:.0f}×{alto:.0f} m</b> ({ancho*largo:,.0f} m²). "
@@ -579,10 +582,10 @@ def generar_pdf(config, resultado, lead):
 
     # Tabla técnica domo
     story.append(Spacer(1, 0.5*cm))
-    story.append(Paragraph("Ficha Técnica del Domo", s_h2))
+    story.append(Paragraph(T("pdf_ficha_title", _L), s_h2))
     t_ficha = Table([
-        ["Parámetro", "Valor", "Descripción"],
-        ["Modelo",      Paragraph(modelo, s("mod", fontSize=8, textColor=ECO_GRIS, wordWrap="CJK")), "Referencia Sunoptics®"],
+        [T("pdf_param",_L), T("pdf_value",_L), T("pdf_description",_L)],
+        [T("pdf_model",_L),      Paragraph(modelo, s("mod", fontSize=8, textColor=ECO_GRIS, wordWrap="CJK")), T("pdf_vlt_desc",_L) if False else "Referencia Sunoptics®"],
         ["VLT",         f"{vlt:.0%}",     "Transmitancia luminosa visible (NFRC 200)"],
         ["SHGC",        f"{shgc:.2f}",    "Solar Heat Gain Coefficient (NFRC 200)"],
         ["SFR diseño",  f"{sfr_d*100:.0f}%", "Área domos / Área techo"],
@@ -607,7 +610,7 @@ def generar_pdf(config, resultado, lead):
     # =========================================================================
     # PÁG 3 — ANÁLISIS ENERGÉTICO
     # =========================================================================
-    story.append(Paragraph("Análisis Energético — Curva de Optimización SFR", s_h1))
+    story.append(Paragraph(T("pdf_energy_title", _L), s_h1))
     story.append(Paragraph(
         f"Se corrieron <b>7 simulaciones EnergyPlus 23.2</b> variando el SFR de 0% a 6% "
         f"para la nave de {ancho:.0f}×{largo:.0f} m en <b>{ciudad}, {pais}</b>. "
@@ -649,7 +652,7 @@ def generar_pdf(config, resultado, lead):
         story.append(Paragraph(f"[Gráfica no disponible: {e}]", s_small))
 
     story.append(Spacer(1, 0.3*cm))
-    story.append(Paragraph("Tabla de Resultados por SFR", s_h2))
+    story.append(Paragraph(T("pdf_table_title", _L), s_h2))
 
     sem_map = {
         "Subiluminado (<150 lux)":      "⚫ Subiluminado",
@@ -657,8 +660,8 @@ def generar_pdf(config, resultado, lead):
         "Límite UDI-Autonomous":         "Limite UDI",
         "Sobreiluminación UDI-Exceeded": "Sobreiluminacion",
     }
-    filas_t = [["SFR", "Domos", "Ah. Ilum.\nkWh/año", "Pen. Cool\nkWh/año",
-                "Neto\nkWh/año", "% Base", "Ilum.\nlux", "Semáforo\nNormativo"]]
+    filas_t = [[T("pdf_col_sfr",_L), T("pdf_col_domos",_L), T("pdf_col_ah_luz",_L), T("pdf_col_pen_cool",_L),
+                T("pdf_col_neto",_L), T("pdf_col_pct",_L), T("pdf_col_lux",_L), T("pdf_col_sem",_L)]]
     for r in df_curva:
         es_opt  = "★ " if r.get("sfr_pct") == sfr_opt  else ""
         es_dual = "◆ " if r.get("sfr_pct") == sfr_dual and sfr_dual != sfr_opt else ""
@@ -670,7 +673,7 @@ def generar_pdf(config, resultado, lead):
             f"{r.get('neto_kwh',0):,.0f}",
             f"{r.get('pct_base',0):.1f}%",
             f"{r.get('fc_lux',0):.0f}",
-            sem_map.get(r.get("semaforo",""), r.get("semaforo","—")),
+            get_compliance_label(r.get("semaforo",""), _L),
         ])
 
     t_res = Table(filas_t, colWidths=[1.6*cm, 1.4*cm, 2.5*cm, 2.5*cm, 2.5*cm, 1.6*cm, 1.6*cm, 4.3*cm])
@@ -691,7 +694,7 @@ def generar_pdf(config, resultado, lead):
     # =========================================================================
     # PÁG 4 — CONFORT VISUAL + RECOMENDACIÓN
     # =========================================================================
-    story.append(Paragraph("Confort Visual — Disponibilidad de Luz Natural", s_h1))
+    story.append(Paragraph(T("pdf_comfort_title", _L), s_h1))
     story.append(Paragraph(
         f"Mapa horario de iluminancia interior promedio para <b>SFR={sfr_show}%</b>. "
         "Las zonas rojas indican períodos donde la luz natural supera el setpoint normativo, "
@@ -709,7 +712,7 @@ def generar_pdf(config, resultado, lead):
             story.append(Paragraph(f"[Heatmap no disponible: {e}]", s_small))
 
     story.append(Spacer(1, 0.5*cm))
-    story.append(Paragraph("Recomendación de Diseño SkyPlus®", s_h1))
+    story.append(Paragraph(T("pdf_recom_title", _L), s_h1))
     story.append(Paragraph(recomend_limpio, s_body))
     story.append(Spacer(1, 0.4*cm))
 
@@ -739,7 +742,7 @@ def generar_pdf(config, resultado, lead):
     # CTA Ventas Premium
     t_cta = Table([[
         Paragraph(
-            "<b>Estudio BEM Premium</b><br/><br/>"
+            f"<b>{T('pdf_bem_title', _L)}</b><br/><br/>"
             "Simulación espacial con Radiance.<br/>"
             "Validación punto por punto, certificación<br/>"
             "LEED v4.1, EDGE y BREEAM.<br/>"
@@ -747,7 +750,7 @@ def generar_pdf(config, resultado, lead):
             s('C1', fontSize=9, textColor=white, leading=14)
         ),
         Paragraph(
-            "<b>Proyecto Ejecutivo</b><br/><br/>"
+            f"<b>{T('pdf_exec_title', _L)}</b><br/><br/>"
             "Layout optimizado de domos.<br/>"
             "Especificaciones técnicas completas.<br/>"
             "Análisis de ROI y período de retorno.<br/>"
