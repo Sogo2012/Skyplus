@@ -931,7 +931,7 @@ with tab_config:
         section_title(T("stations_available", _L))
 
         if st.session_state.clima_data:
-            st.markdown(f'<span class="eco-badge-ok">Clima activo</span><br>'
+            st.markdown(f'<span class="eco-badge-ok">{T("active_climate",_L)}</span><br>'
                         f'<span style="font-size:0.75rem;color:{ECO_GRIS}">'
                         f'{st.session_state.estacion_seleccionada}</span>',
                         unsafe_allow_html=True)
@@ -947,7 +947,7 @@ with tab_config:
 
                 with st.container():
                     st.markdown(f"**{st_name}**")
-                    st.caption(f"Distancia: **{st_dist} km**")
+                    st.caption(f"{T('distance_label',_L)}: **{st_dist} km**")
                     if st.button(T("download_climate", _L),
                                  key=f"btn_st_{idx}", use_container_width=True):
                         if url:
