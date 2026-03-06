@@ -896,6 +896,9 @@ def configurar_proyecto(ancho=50.0, largo=100.0, altura=8.0,
 # -----------------------------------------------------------------------------
 
 def simular_caso_diseno(config, callback=None):
+    _L  = config.get("lang",  "ES")
+    _U  = config.get("units", "metric")
+    _FT = 3.28084
     """
     Etapa 1 del flujo SaaS. Corre solo 2 simulaciones EnergyPlus:
       - Caso base (SFR=0%, sin domos)
@@ -1097,6 +1100,9 @@ def simular_caso_diseno(config, callback=None):
 # -----------------------------------------------------------------------------
 
 def calcular_curva_sfr(config, callback=None, sql_base_existente=None):
+    _L  = config.get("lang",  "ES")
+    _U  = config.get("units", "metric")
+    _FT = 3.28084
     """
     Etapa 2 del flujo SaaS. Corre 7 simulaciones (SFR 0%→6%).
 
