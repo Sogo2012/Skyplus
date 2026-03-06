@@ -144,7 +144,7 @@ def generar_isometrico(ancho, largo, alto, num_domos, sfr_real, domo_ancho, domo
 # =============================================================================
 # HEATMAP LUXES
 # =============================================================================
-def generar_heatmap_luxes(epw_path, sfr_pct, vlt, tipo_uso):
+def generar_heatmap_luxes(epw_path, sfr_pct, vlt, tipo_uso, lang="ES"):
     transmis = (sfr_pct / 100.0) * vlt * 0.736
 
     with open(epw_path, "r", errors="ignore") as f:
@@ -160,7 +160,20 @@ def generar_heatmap_luxes(epw_path, sfr_pct, vlt, tipo_uso):
     fc_8760 = illum * transmis
 
     dias_mes = [31,28,31,30,31,30,31,31,30,31,30,31]
-    meses    = ["Ene","Feb","Mar","Abr","May","Jun","Jul","Ago","Sep","Oct","Nov","Dic"]
+    # Bilingüe — meses según idioma
+    if lang == "EN":
+        meses = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"]
+        lbl_title   = f"Daylight Availability — SFR {sfr_pct}%  |  Setpoint: {{lux_sp}} lux"
+        lbl_tod      = "Time of Day"
+        lbl_month    = "Month"
+        lbl_colorbar = "Average Lux"
+    else:
+        meses = ["Ene","Feb","Mar","Abr","May","Jun","Jul","Ago","Sep","Oct","Nov","Dic"]
+        lbl_title   = f"Disponibilidad de Luz Natural — SFR {sfr_pct}%  |  Setpoint: {{lux_sp}} lux"
+        lbl_tod      = "Hora del día"
+        lbl_month    = "Mes"
+        lbl_colorbar = "Lux promedio"
+
     matriz   = np.zeros((12, 24))
     h = 0
     for m in range(12):
@@ -181,11 +194,10 @@ def generar_heatmap_luxes(epw_path, sfr_pct, vlt, tipo_uso):
     ax.set_xticklabels([f"{h}:00" for h in range(0, 24, 2)], fontsize=7)
     ax.set_yticks(range(12))
     ax.set_yticklabels(meses, fontsize=8)
-    ax.set_xlabel("Hora del día", fontsize=9)
-    ax.set_ylabel("Mes", fontsize=9)
-    ax.set_title(f"Disponibilidad de Luz Natural — SFR {sfr_pct}%  |  Setpoint: {lux_sp} lux",
-                 fontsize=10, color='#003C52')
-    plt.colorbar(im, ax=ax, shrink=0.8).set_label("Lux promedio", fontsize=8)
+    ax.set_xlabel(lbl_tod, fontsize=9)
+    ax.set_ylabel(lbl_month, fontsize=9)
+    ax.set_title(lbl_title.format(lux_sp=lux_sp), fontsize=10, color='#003C52')
+    plt.colorbar(im, ax=ax, shrink=0.8).set_label(lbl_colorbar, fontsize=8)
     plt.tight_layout()
 
     buf = io.BytesIO()
@@ -452,10 +464,10 @@ def generar_pdf(config, resultado, lead):
         Paragraph(sfr_show_str,             s_kpi_val),
         Paragraph(f"{lux_dual:.0f}" if lux_dual else "—", s_kpi_val),
     ],[
-        Paragraph("Ahorro energético\nmáximo", s_kpi_lbl),
-        Paragraph("kWh ahorrados\npor año",    s_kpi_lbl),
-        Paragraph("SFR recomendado\n(Óptimo Dual)", s_kpi_lbl),
-        Paragraph("Iluminancia\npromedio (lux)", s_kpi_lbl),
+        Paragraph(T("pdf_kpi_max_savings",_L), s_kpi_lbl),
+        Paragraph(T("pdf_kpi_kwh_year",_L),    s_kpi_lbl),
+        Paragraph(T("pdf_kpi_sfr_rec",_L), s_kpi_lbl),
+        Paragraph(T("pdf_kpi_lux",_L), s_kpi_lbl),
     ]]
     col_w = (W - 3.6*cm) / 4
     t_kpi_cover = Table(kpi_data, colWidths=[col_w]*4)
@@ -473,25 +485,29 @@ def generar_pdf(config, resultado, lead):
 
     # Datos del cliente + proyecto en dos columnas
     col_cliente = [
-        [Paragraph("<b>CLIENTE</b>",  s('lbl', fontSize=7, textColor=ECO_VERDE, fontName='Helvetica-Bold')), ""],
-        [Paragraph("Nombre",   s('fl', fontSize=8, textColor=ECO_GRIS,  fontName='Helvetica-Bold')),
+        [Paragraph(f"<b>{T('pdf_client_header',_L)}</b>", s('lbl', fontSize=7, textColor=ECO_VERDE, fontName='Helvetica-Bold')), ""],
+        [Paragraph(T("pdf_field_name",_L),   s('fl', fontSize=8, textColor=ECO_GRIS,  fontName='Helvetica-Bold')),
          Paragraph(lead.get("nombre","—"),  s('fv', fontSize=9, textColor=ECO_AZUL))],
-        [Paragraph("Empresa",  s('fl2',fontSize=8, textColor=ECO_GRIS,  fontName='Helvetica-Bold')),
+        [Paragraph(T("pdf_field_company",_L),  s('fl2',fontSize=8, textColor=ECO_GRIS,  fontName='Helvetica-Bold')),
          Paragraph(lead.get("empresa","—"), s('fv2',fontSize=9, textColor=ECO_AZUL))],
-        [Paragraph("Correo",   s('fl3',fontSize=8, textColor=ECO_GRIS,  fontName='Helvetica-Bold')),
+        [Paragraph(T("pdf_field_email",_L),   s('fl3',fontSize=8, textColor=ECO_GRIS,  fontName='Helvetica-Bold')),
          Paragraph(lead.get("correo","—"),  s('fv3',fontSize=8, textColor=ECO_GRIS))],
-        [Paragraph("Fecha",    s('fl4',fontSize=8, textColor=ECO_GRIS,  fontName='Helvetica-Bold')),
+        [Paragraph(T("pdf_field_date",_L),    s('fl4',fontSize=8, textColor=ECO_GRIS,  fontName='Helvetica-Bold')),
          Paragraph(fecha,                   s('fv4',fontSize=9, textColor=ECO_AZUL))],
     ]
     col_proyecto = [
-        [Paragraph("<b>PROYECTO</b>", s('lbl2', fontSize=7, textColor=ECO_VERDE, fontName='Helvetica-Bold')), ""],
-        [Paragraph("Nave",     s('pl', fontSize=8, textColor=ECO_GRIS,  fontName='Helvetica-Bold')),
-         Paragraph(f"{ancho:.0f}×{largo:.0f}×{alto:.0f} m  ({ancho*largo:,.0f} m²)", s('pv', fontSize=9, textColor=ECO_AZUL))],
-        [Paragraph("Uso",      s('pl2',fontSize=8, textColor=ECO_GRIS,  fontName='Helvetica-Bold')),
+        [Paragraph(f"<b>{T('pdf_project_header',_L)}</b>", s('lbl2', fontSize=7, textColor=ECO_VERDE, fontName='Helvetica-Bold')), ""],
+        [Paragraph(T("pdf_field_building",_L),     s('pl', fontSize=8, textColor=ECO_GRIS,  fontName='Helvetica-Bold')),
+         Paragraph(
+         f"{ancho*3.28084:.0f}×{largo*3.28084:.0f}×{alto*3.28084:.0f} ft  ({ancho*largo*10.7639:,.0f} ft²)"
+         if _U=="imperial" else
+         f"{ancho:.0f}×{largo:.0f}×{alto:.0f} m  ({ancho*largo:,.0f} m²)",
+         s('pv', fontSize=9, textColor=ECO_AZUL))],
+        [Paragraph(T("pdf_field_usage",_L),      s('pl2',fontSize=8, textColor=ECO_GRIS,  fontName='Helvetica-Bold')),
          Paragraph(tipo_uso,   s('pv2',fontSize=9, textColor=ECO_AZUL))],
-        [Paragraph("Clima",    s('pl3',fontSize=8, textColor=ECO_GRIS,  fontName='Helvetica-Bold')),
+        [Paragraph(T("pdf_field_climate",_L),    s('pl3',fontSize=8, textColor=ECO_GRIS,  fontName='Helvetica-Bold')),
          Paragraph(f"{ciudad}, {pais}", s('pv3',fontSize=8, textColor=ECO_GRIS))],
-        [Paragraph("Motor",    s('pl4',fontSize=8, textColor=ECO_GRIS,  fontName='Helvetica-Bold')),
+        [Paragraph(T("pdf_field_engine",_L),    s('pl4',fontSize=8, textColor=ECO_GRIS,  fontName='Helvetica-Bold')),
          Paragraph("EnergyPlus 23.2 (DOE)", s('pv4',fontSize=8, textColor=ECO_GRIS))],
     ]
 
@@ -525,14 +541,14 @@ def generar_pdf(config, resultado, lead):
 
     # Domo specs
     story.append(Spacer(1, 0.5*cm))
-    story.append(Paragraph("Domo Sunoptics® Especificado", s_h2))
+    story.append(Paragraph(T("pdf_dome_spec", _L), s_h2))
     s_lbl = s("lbl", fontSize=7.5, textColor=ECO_AZUL, fontName="Helvetica-Bold")
     s_val = s("val", fontSize=8,   textColor=ECO_AZUL)
     t_domo = Table([
         [Paragraph("Modelo",     s_lbl), Paragraph(modelo,                          s_val),
          Paragraph("VLT",        s_lbl), Paragraph(f"{vlt:.0%}",                    s_val),
          Paragraph("SHGC",       s_lbl), Paragraph(f"{shgc:.2f}",                   s_val),
-         Paragraph("SFR diseno", s_lbl), Paragraph(f"{sfr_d*100:.0f}%\n{n_domos} domos", s_val)],
+         Paragraph(T("pdf_sfr_design",_L), s_lbl), Paragraph(f"{sfr_d*100:.0f}%\n{n_domos} {T('pdf_dome_units',_L)}", s_val)],
     ], colWidths=[2*cm, 4*cm, 1.2*cm, 1.5*cm, 1.5*cm, 1.5*cm, 2.5*cm, 3.0*cm])
     t_domo.setStyle(TableStyle([
         ('FONTSIZE',       (0,0),(-1,-1), 8),
@@ -548,7 +564,7 @@ def generar_pdf(config, resultado, lead):
     # Comentarios
     comentario = lead.get("comentario","").strip()
     if comentario:
-        story += [Spacer(1,0.4*cm), Paragraph("Notas del Cliente", s_h2),
+        story += [Spacer(1,0.4*cm), Paragraph(T("pdf_client_notes",_L), s_h2),
                   Paragraph(comentario, s_body)]
 
     # Normativa
@@ -584,13 +600,13 @@ def generar_pdf(config, resultado, lead):
     story.append(Spacer(1, 0.5*cm))
     story.append(Paragraph(T("pdf_ficha_title", _L), s_h2))
     t_ficha = Table([
-        [T("pdf_param",_L), T("pdf_value",_L), T("pdf_description",_L)],
-        [T("pdf_model",_L),      Paragraph(modelo, s("mod", fontSize=8, textColor=ECO_GRIS, wordWrap="CJK")), T("pdf_vlt_desc",_L) if False else "Referencia Sunoptics®"],
+        [T("pdf_ficha_param",_L), T("pdf_ficha_value",_L), T("pdf_ficha_desc",_L)],
+        [T("pdf_dome_label",_L),      Paragraph(modelo, s("mod", fontSize=8, textColor=ECO_GRIS, wordWrap="CJK")), T("pdf_vlt_desc",_L) if False else "Referencia Sunoptics®"],
         ["VLT",         f"{vlt:.0%}",     "Transmitancia luminosa visible (NFRC 200)"],
         ["SHGC",        f"{shgc:.2f}",    "Solar Heat Gain Coefficient (NFRC 200)"],
-        ["SFR diseño",  f"{sfr_d*100:.0f}%", "Área domos / Área techo"],
-        ["Domos",       str(n_domos),     "Unidades instaladas en cuadrícula simétrica"],
-        ["Normativa",   "ISO 8995-1",     "Setpoint iluminación según tipo de uso"],
+        [T("pdf_sfr_design",_L), f"{sfr_d*100:.0f}%", T("pdf_ficha_sfr_desc",_L)],
+        [T("pdf_ficha_domes_row",_L), str(n_domos), T("pdf_ficha_domes_desc",_L)],
+        [T("pdf_ficha_norm",_L), T("pdf_ficha_norm_val",_L), T("pdf_ficha_norm_desc",_L)],
     ], colWidths=[3.0*cm, 4.5*cm, 10.0*cm])
     t_ficha.setStyle(TableStyle([
         ('FONTNAME',       (0,0),(-1,0), 'Helvetica-Bold'),
@@ -627,10 +643,10 @@ def generar_pdf(config, resultado, lead):
         Paragraph(f"{neto_opt:,.0f}",           s_kpi_val),
         Paragraph(f"{kwh_base:,.0f}",           s_kpi_val),
     ],[
-        Paragraph("SFR Óptimo\nEnergético",     s_kpi_lbl),
-        Paragraph("Ahorro\nmáximo",             s_kpi_lbl),
-        Paragraph("kWh/año\nahorrados",         s_kpi_lbl),
-        Paragraph("kWh/año\nconsumo base",      s_kpi_lbl),
+        Paragraph(T("pdf_kpi_sfr_opt",_L), s_kpi_lbl),
+        Paragraph(T("pdf_kpi_max_pct",_L), s_kpi_lbl),
+        Paragraph(T("pdf_kpi_kwh_saved",_L), s_kpi_lbl),
+        Paragraph(T("pdf_kpi_kwh_base",_L), s_kpi_lbl),
     ]]
     t_kpis = Table(kpi_rows, colWidths=[col_w]*4)
     t_kpis.setStyle(TableStyle([
@@ -706,7 +722,7 @@ def generar_pdf(config, resultado, lead):
     epw_path_local = config.get("epw_path","")
     if epw_path_local and os.path.exists(epw_path_local):
         try:
-            hm = generar_heatmap_luxes(epw_path_local, sfr_show, vlt, tipo_uso)
+            hm = generar_heatmap_luxes(epw_path_local, sfr_show, vlt, tipo_uso, lang=_L)
             story.append(RLImage(io.BytesIO(hm), width=15.5*cm, height=7*cm, kind='proportional'))
         except Exception as e:
             story.append(Paragraph(f"[Heatmap no disponible: {e}]", s_small))
@@ -725,7 +741,7 @@ def generar_pdf(config, resultado, lead):
 
     t_sem = Table([[
         Paragraph(
-            f"<b>Estado normativo SFR={sfr_show}%:</b>  {sem_txt}",
+            f"<b>{T('pdf_normative_status',_L)} SFR={sfr_show}%:</b>  {get_compliance_label(sem_txt, _L)}",
             s('sem', fontSize=10, textColor=HexColor(sem_color_hex), fontName='Helvetica-Bold')
         )
     ]], colWidths=[W - 3.6*cm])
@@ -742,19 +758,13 @@ def generar_pdf(config, resultado, lead):
     # CTA Ventas Premium
     t_cta = Table([[
         Paragraph(
-            f"<b>{T('pdf_bem_title', _L)}</b><br/><br/>"
-            "Simulación espacial con Radiance.<br/>"
-            "Validación punto por punto, certificación<br/>"
-            "LEED v4.1, EDGE y BREEAM.<br/>"
-            "Mapas de iluminancia y deslumbramiento.",
+            f"<b>{T('pdf_bem_title', _L)}</b><br/><br/>" +
+            T("pdf_bem_desc",_L).replace(". ",".<br/>"),
             s('C1', fontSize=9, textColor=white, leading=14)
         ),
         Paragraph(
-            f"<b>{T('pdf_exec_title', _L)}</b><br/><br/>"
-            "Layout optimizado de domos.<br/>"
-            "Especificaciones técnicas completas.<br/>"
-            "Análisis de ROI y período de retorno.<br/>"
-            "Presupuesto de instalación Sunoptics®.",
+            f"<b>{T('pdf_exec_title', _L)}</b><br/><br/>" +
+            T("pdf_exec_desc",_L).replace(". ",".<br/>"),
             s('C2', fontSize=9, textColor=white, leading=14)
         ),
     ]], colWidths=[(W-3.6*cm)/2]*2)
@@ -770,10 +780,7 @@ def generar_pdf(config, resultado, lead):
 
     story.append(Spacer(1, 0.5*cm))
     story.append(Paragraph(
-        "Para mayor información contáctenos en <b>ingenieria@ecoconsultor.com</b>  ·  "
-        "Los resultados de este reporte fueron generados con EnergyPlus 23.2 (DOE). "
-        "Para certificaciones LEED, EDGE o validación espacial detallada, "
-        "se requiere un estudio BEM completo con simulación Radiance.",
+        T("pdf_disclaimer",_L),
         s_disc,
     ))
 
