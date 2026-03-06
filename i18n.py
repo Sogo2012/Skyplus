@@ -114,6 +114,7 @@ STRINGS = {
     # ── ERRORS & STATUS ──────────────────────────────────────────────────────
     "err_no_stations":        {"ES": "No se encontraron estaciones para esta ubicación.",
                                "EN": "No climate stations found for this location."},
+    "err_no_geometry":       {"ES": "Ingresa las dimensiones de la nave antes de simular.", "EN": "Enter the facility dimensions before running the simulation."},
     "err_geocoder_notfound":  {"ES": "No se pudo localizar ese lugar. Intenta con el nombre en inglés o usa coordenadas.",
                                "EN": "Location not found. Try a different spelling or use coordinates."},
     "err_geocoder_timeout":   {"ES": "Timeout al conectar con el geocodificador. Intenta de nuevo o ingresa las coordenadas manualmente.",
