@@ -827,7 +827,7 @@ with st.sidebar:
     _idx_filtrado = list(_df_filtrado.index).index(int(_idx_default[0])) if len(_idx_default) else 0
 
     modelo_sel = st.selectbox(
-        "Modelo NFRC",
+        T("dome_model_select",_L),
         _df_filtrado['Modelo'],
         index=_idx_filtrado,
     )
@@ -1328,10 +1328,10 @@ with tab_analitica:
         ], sm=True)
         st.markdown("<div style='height:4px'></div>", unsafe_allow_html=True)
         render_cards([
-            {"label": "Domo",       "value": f"{modelo_sel.split(' ')[2]} {modelo_sel.split(' ')[3]}"},
+            {"label": T("skyplus_dome_label",_L), "value": f"{modelo_sel.split(' ')[2]} {modelo_sel.split(' ')[3]}"},
             {"label": T("vlt",_L),       "value": f"{datos_domo['VLT']:.0%}"},
             {"label": T("sfr_design",_L), "value": f"{sfr_target*100:.0f}%"},
-            {"label": "Motor",      "value": "EnergyPlus 23.2"},
+            {"label": T("pdf_field_engine",_L), "value": "EnergyPlus 23.2"},
         ], sm=True)
 
     st.divider()
@@ -1427,7 +1427,7 @@ with tab_analitica:
              "value": f"{res['n_domos']} {T('units_count',_L)}",
              "delta": f"{fmt_illuminance(res['fc_lux'], _U, 0)} {T('lux_avg', _L)}"}, 
             {"label": T("visual_comfort", _L),
-             "value": res["semaforo_txt"],
+             "value": get_compliance_label(res["semaforo_txt"], _L),
              "delta": "ISO 8995-1 + IES RP-7"},
         ])
 
@@ -1599,7 +1599,7 @@ with tab_analitica:
             render_cards([
                 {"label": T("status_label",_L), "value": T("simulating_cloud",_L), "delta": "7 × EnergyPlus 23.2", "green": True},
                 {"label": T("delivery_label", _L),       "value": f"~{max(20, min(40, int(ancho_nave*largo_nave/1000)*3 + 20))} {'min'}", "delta": f"A: {st.session_state.lead_correo}"},
-                {"label": "Motor",         "value": "EnergyPlus 23.2",    "delta": "DOE oficial"},
+                {"label": T("pdf_field_engine",_L), "value": "EnergyPlus 23.2",    "delta": "DOE oficial"},
                 {"label": T("analysis_label", _L),      "value": T("analysis_value", _L), "delta": T("analysis_delta", _L)},
             ])
 
