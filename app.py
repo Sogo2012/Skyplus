@@ -820,9 +820,10 @@ with st.sidebar:
         _h_min, _h_max, _h_def, _h_step =  3.0,   30.0,   8.0, 0.5
 
     # Lo que el usuario ve y escribe — en SUS unidades
-    _ancho_usr = st.number_input(T("width_m",  _L), min_value=_w_min, max_value=_w_max, value=_w_def, step=_w_step)
-    _largo_usr = st.number_input(T("length_m", _L), min_value=_l_min, max_value=_l_max, value=_l_def, step=_l_step)
-    _alto_usr  = st.number_input(T("height_m", _L), min_value=_h_min, max_value=_h_max, value=_h_def, step=_h_step)
+    # key incluye _U para forzar re-render limpio al cambiar idioma/unidades
+    _ancho_usr = st.number_input(T("width_m",  _L), min_value=_w_min, max_value=_w_max, value=_w_def, step=_w_step, key=f"ni_ancho_{_U}")
+    _largo_usr = st.number_input(T("length_m", _L), min_value=_l_min, max_value=_l_max, value=_l_def, step=_l_step, key=f"ni_largo_{_U}")
+    _alto_usr  = st.number_input(T("height_m", _L), min_value=_h_min, max_value=_h_max, value=_h_def, step=_h_step, key=f"ni_alto_{_U}")
 
     # Guardar en session_state para acceso fuera del sidebar
     st.session_state["_ancho_usr"] = _ancho_usr
