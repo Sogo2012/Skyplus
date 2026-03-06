@@ -896,9 +896,6 @@ def configurar_proyecto(ancho=50.0, largo=100.0, altura=8.0,
 # -----------------------------------------------------------------------------
 
 def simular_caso_diseno(config, callback=None):
-    _L  = config.get("lang",  "ES")
-    _U  = config.get("units", "metric")
-    _FT = 3.28084
     """
     Etapa 1 del flujo SaaS. Corre solo 2 simulaciones EnergyPlus:
       - Caso base (SFR=0%, sin domos)
@@ -924,6 +921,10 @@ def simular_caso_diseno(config, callback=None):
         recomendacion    : str    — texto ejecutivo
         error            : str|None
     """
+    _L  = config.get("lang",  "ES")
+    _U  = config.get("units", "metric")
+    _FT = 3.28084
+
     def _cb(paso, total, msg):
         if callback: callback(paso, total, msg)
 
@@ -944,7 +945,7 @@ def simular_caso_diseno(config, callback=None):
 
     try:
         # --- Caso Base ---
-        _cb(0, 2, "Simulando caso base (SFR=0%)...")
+        _cb(0, 2, ("Simulating baseline (SFR=0%)..." if _L=="EN" else "Simulando caso base (SFR=0%)..."))
         hb_base, sfr_real_base, sp_base, sh_id_base, sc_id_base = construir_modelo(
             ancho=ancho, largo=largo, altura=altura,
             tipo_uso=tipo_uso, epw_path=epw_path, sfr=0,
@@ -962,7 +963,7 @@ def simular_caso_diseno(config, callback=None):
         # --- Caso Diseño ---
         sfr_pct = round(sfr_diseno * 100, 1)
         sufijo_d = f"sfr_{int(sfr_pct):02d}pct"
-        _cb(1, 2, f"Simulando caso diseño (SFR={sfr_pct}%)...")
+        _cb(1, 2, f(f"Simulating design case (SFR={sfr_pct}%)..." if _L=="EN" else f"Simulando caso diseño (SFR={sfr_pct}%)..."))
         hb_dis, sfr_real_dis, sp_dis, sh_id_dis, sc_id_dis = construir_modelo(
             ancho=ancho, largo=largo, altura=altura,
             tipo_uso=tipo_uso, epw_path=epw_path, sfr=sfr_diseno,
@@ -1100,9 +1101,6 @@ def simular_caso_diseno(config, callback=None):
 # -----------------------------------------------------------------------------
 
 def calcular_curva_sfr(config, callback=None, sql_base_existente=None):
-    _L  = config.get("lang",  "ES")
-    _U  = config.get("units", "metric")
-    _FT = 3.28084
     """
     Etapa 2 del flujo SaaS. Corre 7 simulaciones (SFR 0%→6%).
 
@@ -1126,6 +1124,10 @@ def calcular_curva_sfr(config, callback=None, sql_base_existente=None):
         df_curva_raw : list[dict]
         error        : str|None
     """
+    _L  = config.get("lang",  "ES")
+    _U  = config.get("units", "metric")
+    _FT = 3.28084
+
     def _cb(paso, total, msg):
         if callback: callback(paso, total, msg)
 
@@ -1151,11 +1153,11 @@ def calcular_curva_sfr(config, callback=None, sql_base_existente=None):
         for i, sfr_pct in enumerate(sfr_curva_pct):
             sfr    = sfr_pct / 100.0
             sufijo = f"sfr_{sfr_pct:02d}pct" if sfr_pct > 0 else "base"
-            _cb(i, n_sims, f"Simulando SFR={sfr_pct}% ({i+1}/{n_sims})...")
+            _cb(i, n_sims, (f"Simulating SFR={sfr_pct}% ({i+1}/{n_sims})..." if _L=="EN" else f"Simulando SFR={sfr_pct}% ({i+1}/{n_sims})..."))
 
             # Reutilizar sql_base de Etapa 1 si existe
             if sfr_pct == 0 and sql_base_existente and os.path.exists(sql_base_existente):
-                _cb(i, n_sims, "SFR=0%: reutilizando caso base ya simulado...")
+                _cb(i, n_sims, ("SFR=0%: reusing baseline..." if _L=="EN" else "SFR=0%: reutilizando caso base ya simulado..."))
                 sql_path = sql_base_existente
                 sfr_real = 0.0
             else:
