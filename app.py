@@ -935,6 +935,19 @@ with st.sidebar:
     st.session_state["_modelo_sel"] = modelo_sel
     st.session_state["_tipo_uso"]   = tipo_uso
 
+# ── Leer variables del sidebar desde session_state ───────────────────────────
+# Garantiza que el body siempre tenga valores válidos sin importar el orden de rerun
+ancho_nave = st.session_state.get("_ancho_nave", 50.0)
+largo_nave = st.session_state.get("_largo_nave", 100.0)
+alto_nave  = st.session_state.get("_alto_nave",  8.0)
+area_nave  = st.session_state.get("_area_nave",  5000.0)
+sfr_target = st.session_state.get("_sfr_target", 0.03)
+modelo_sel = st.session_state.get("_modelo_sel", "")
+tipo_uso   = st.session_state.get("_tipo_uso",   "Warehouse")
+_ancho_usr = st.session_state.get("_ancho_usr",  50.0)
+_largo_usr = st.session_state.get("_largo_usr",  100.0)
+_alto_usr  = st.session_state.get("_alto_usr",   8.0)
+
 tab_config, tab_clima, tab_3d, tab_analitica = st.tabs([
     T("tab_climate", _L),
     T("tab_context", _L),
