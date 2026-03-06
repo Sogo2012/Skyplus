@@ -963,7 +963,7 @@ def simular_caso_diseno(config, callback=None):
         # --- Caso Diseño ---
         sfr_pct = round(sfr_diseno * 100, 1)
         sufijo_d = f"sfr_{int(sfr_pct):02d}pct"
-        _cb(1, 2, f(f"Simulating design case (SFR={sfr_pct}%)..." if _L=="EN" else f"Simulando caso diseño (SFR={sfr_pct}%)..."))
+        _cb(1, 2, (f"Simulating design case (SFR={sfr_pct}%)..." if _L=="EN" else f"Simulando caso diseño (SFR={sfr_pct}%)..."))
         hb_dis, sfr_real_dis, sp_dis, sh_id_dis, sc_id_dis = construir_modelo(
             ancho=ancho, largo=largo, altura=altura,
             tipo_uso=tipo_uso, epw_path=epw_path, sfr=sfr_diseno,
