@@ -663,6 +663,24 @@ def buscar_estaciones():
 # =============================================================================
 # 4. SIDEBAR
 # =============================================================================
+
+# ── Defaults para variables del sidebar — evitan UnboundLocalError ────────────
+# Se sobreescriben en el sidebar en cada rerun
+if "_ancho_nave" not in st.session_state:
+    st.session_state["_ancho_nave"] = 50.0
+if "_largo_nave" not in st.session_state:
+    st.session_state["_largo_nave"] = 100.0
+if "_alto_nave" not in st.session_state:
+    st.session_state["_alto_nave"] = 8.0
+if "_area_nave" not in st.session_state:
+    st.session_state["_area_nave"] = 5000.0
+if "_sfr_target" not in st.session_state:
+    st.session_state["_sfr_target"] = 0.03
+if "_modelo_sel" not in st.session_state:
+    st.session_state["_modelo_sel"] = ""
+if "_tipo_uso" not in st.session_state:
+    st.session_state["_tipo_uso"] = "Warehouse"
+
 with st.sidebar:
 
     # Brand header con logos
@@ -805,6 +823,11 @@ with st.sidebar:
     _largo_usr = st.number_input(T("length_m", _L), min_value=_l_min, max_value=_l_max, value=_l_def, step=_l_step)
     _alto_usr  = st.number_input(T("height_m", _L), min_value=_h_min, max_value=_h_max, value=_h_def, step=_h_step)
 
+    # Guardar en session_state para acceso fuera del sidebar
+    st.session_state["_ancho_usr"] = _ancho_usr
+    st.session_state["_largo_usr"] = _largo_usr
+    st.session_state["_alto_usr"]  = _alto_usr
+
     # Conversión interna a metros SI — EnergyPlus solo acepta SI
     # El usuario NUNCA ve estos valores, solo el motor los usa
     if _U == "imperial":
@@ -902,6 +925,16 @@ with st.sidebar:
 # =============================================================================
 # 5. TABS — sin emojis, estilo técnico
 # =============================================================================
+
+    # Persistir en session_state para uso en cuerpo principal
+    st.session_state["_ancho_nave"] = ancho_nave
+    st.session_state["_largo_nave"] = largo_nave
+    st.session_state["_alto_nave"]  = alto_nave
+    st.session_state["_area_nave"]  = area_nave
+    st.session_state["_sfr_target"] = sfr_target
+    st.session_state["_modelo_sel"] = modelo_sel
+    st.session_state["_tipo_uso"]   = tipo_uso
+
 tab_config, tab_clima, tab_3d, tab_analitica = st.tabs([
     T("tab_climate", _L),
     T("tab_context", _L),
@@ -1186,7 +1219,7 @@ with tab_3d:
         domo_largo = float(datos_domo['Largo_m'])
         # A, L, H en unidades del USUARIO para todo el render visual
         # Los metros internos solo van al motor — aquí el usuario ve sus propias unidades
-        A, L, H    = _ancho_usr, _largo_usr, _alto_usr
+        A, L, H    = st.session_state.get("_ancho_usr", 50.0), st.session_state.get("_largo_usr", 100.0), st.session_state.get("_alto_usr", 8.0)
         # Domos del catálogo están en metros → convertir para render visual
         _domo_a_vis = domo_ancho * CONVERSION["m_to_ft"] if _U == "imperial" else domo_ancho
         _domo_l_vis = domo_largo * CONVERSION["m_to_ft"] if _U == "imperial" else domo_largo
@@ -1307,7 +1340,7 @@ with tab_3d:
             legend=dict(x=0.01,y=0.99,bgcolor="rgba(255,255,255,0.8)",
                 bordercolor="#D4B896",borderwidth=1,font=dict(size=9)),
             title=dict(
-                text=f"{_ancho_usr:.0f}×{_largo_usr:.0f}×{_alto_usr:.0f} {T('units_m',_L)} — {num_domos} {'Skylights' if _L=='EN' else 'domos'} Sunoptics® (SFR {sfr_pct:.1f}%)",
+                text=f"{st.session_state.get('_ancho_usr',50.0):.0f}×{st.session_state.get('_largo_usr',100.0):.0f}×{st.session_state.get('_alto_usr',8.0):.0f} {T('units_m',_L)} — {num_domos} {'Skylights' if _L=='EN' else 'domos'} Sunoptics® (SFR {sfr_pct:.1f}%)",
                 font=dict(size=11,color="#003C52"),x=0.5),
         )
         st.plotly_chart(fig3d, use_container_width=True)
@@ -1476,7 +1509,7 @@ with tab_analitica:
             section_title(T("optimization_curve", _L))
             st.markdown(
                 T("lead_subtitle_tmpl", _L).format(
-                    dim=f"{_ancho_usr:.0f}×{_largo_usr:.0f} {T('units_m',_L)}",
+                    dim=f"{st.session_state.get('_ancho_usr',50.0):.0f}×{st.session_state.get('_largo_usr',100.0):.0f} {T('units_m',_L)}",
                     mins=max(20, min(40, int(ancho_nave*largo_nave/1000)*3 + 20))
                 )
             )
