@@ -1266,7 +1266,7 @@ def calcular_curva_sfr(config, callback=None, sql_base_existente=None):
     fig.add_trace(go.Scatter(x=[sfr_opt], y=[neto_opt],
         name=(f"Energy Optimal SFR={sfr_opt}%" if _L=="EN" else f"Óptimo Energético SFR={sfr_opt}%"), mode="markers",
         marker=dict(color="#2ecc71", size=14, symbol="star", line=dict(color="white", width=2)),
-        hovertemplate=f"ÓPTIMO ENERGÍA: {sfr_opt}%<br>Ahorro: {neto_opt:,.0f} kWh/año<extra></extra>"), secondary_y=False)
+        hovertemplate=(f"ENERGY OPTIMUM: {sfr_opt}%<br>Savings: {neto_opt*CONVERSION['kwh_to_kbtu']:,.0f} kBtu/yr<extra></extra>" if _L=="EN" else f"ÓPTIMO ENERGÍA: {sfr_opt}%<br>Ahorro: {neto_opt:,.0f} kWh/año<extra></extra>")), secondary_y=False)
 
     if sfr_dual is not None:
         idx_d = sfr_vals.index(sfr_dual)
