@@ -1420,9 +1420,10 @@ with tab_analitica:
         if not st.session_state.lead_capturado:
             section_title(T("optimization_curve", _L))
             st.markdown(
-                f"Ingresa tus datos y calculamos la curva completa para tu nave de "
-                f"{_ancho_usr:.0f}×{_largo_usr:.0f} {T('units_m',_L)}. "
-                f"{T('lead_subtitle_wait',_L)} {max(20, min(40, int(ancho_nave*largo_nave/1000)*3 + 20))} {T('minutes',_L)}."
+                T("lead_subtitle_tmpl", _L).format(
+                    dim=f"{_ancho_usr:.0f}×{_largo_usr:.0f} {T('units_m',_L)}",
+                    mins=max(20, min(40, int(ancho_nave*largo_nave/1000)*3 + 20))
+                )
             )
             st.markdown("<div style='height:8px'></div>", unsafe_allow_html=True)
 
