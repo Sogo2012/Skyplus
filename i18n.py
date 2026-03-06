@@ -217,14 +217,13 @@ STRINGS = {
     "climate_label":     {"ES": "Clima",                       "EN": "Climate"},
     "sfr_design":        {"ES": "SFR diseño",                  "EN": "Design SFR"},
     "btn_simulate":      {"ES": "Simular mi nave",             "EN": "Run energy simulation"},
-    "sim_compare":       {"ES": "Compara tu nave <strong>sin domos vs con SFR={sfr}%</strong>.",
-                          "EN": "Compare your facility <strong>without skylights vs SFR={sfr}%</strong>."},
+    "sim_compare":       {"ES": "Comparativa base vs diseño",  "EN": "Baseline vs Design Comparison"},
 
     # ── ENERGY RESULTS ───────────────────────────────────────────────────────
     "energy_results":    {"ES": "Resultado energético — tu nave",     "EN": "Energy results — your facility"},
     "savings_label":     {"ES": "Ahorro con tu diseño",               "EN": "Savings with your design"},
     "base_consumption":  {"ES": "Consumo base sin domos",             "EN": "Baseline consumption (no skylights)"},
-    "skylights_sfr":     {"ES": "Domos instalados — SFR {sfr}%",      "EN": "Skylights installed — SFR {sfr}%"},
+    "skylights_sfr":     {"ES": "Domos SFR {sfr}% | {n} uds", "EN": "Skylights SFR {sfr}% | {n} units"},
     "visual_comfort":    {"ES": "Confort visual",                     "EN": "Visual comfort"},
     "lux_avg":           {"ES": "lux promedio zona",                  "EN": "fc avg. workplane"},
     "kwh_year":          {"ES": "kWh/año",                            "EN": "kBtu/yr"},
@@ -233,7 +232,7 @@ STRINGS = {
 
     # ── LEAD FORM ────────────────────────────────────────────────────────────
     "lead_title":        {"ES": "Solicitar reporte técnico",          "EN": "Request technical report"},
-    "lead_subtitle_tmpl":{"ES": "Ingresa tus datos y calculamos la curva completa para tu nave de {dim}. "
+    "lead_subtitle_tmpl": {"ES": "Ingresa tus datos y calculamos la curva completa para tu nave {dim}. "
                                "Recibirás el <b>reporte técnico PDF en tu correo</b> en aproximadamente {mins} minutos.",
                           "EN": "Enter your details and we'll compute the full curve for your {dim} facility. "
                                "You'll receive the <b>technical PDF report by email</b> in approximately {mins} minutes."},
@@ -251,8 +250,8 @@ STRINGS = {
 
     # ── PROCESSING STATUS ────────────────────────────────────────────────────
     "processing_title":  {"ES": "Análisis en progreso",               "EN": "Analysis in progress"},
-    "processing_body":   {"ES": "Estamos calculando la curva de optimización completa (SFR 0%→6%) para tu nave. "
-                               "Recibirás el PDF en tu correo en aproximadamente <strong>{mins} minutos</strong>.",
+    "processing_body":   {"ES": "Estamos calculando la curva completa de optimización (SFR 0%→6%) para tu nave. "
+                               "Recibirás el PDF por correo en aproximadamente <strong>{mins} minutos</strong>.",
                           "EN": "We are computing the full optimization curve (SFR 0%→6%) for your facility. "
                                "You'll receive the PDF by email in approximately <strong>{mins} minutes</strong>."},
     "delivery_label":    {"ES": "Entrega",                            "EN": "Delivery"},
