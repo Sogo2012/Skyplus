@@ -374,6 +374,21 @@ STRINGS = {
                           "EN": "Daylight availability map"},
     "email_signature":   {"ES": "Equipo ECO Consultor",               "EN": "ECO Consultor Team"},
 
+
+    # ── CLIMATE CONTEXT CARDS ─────────────────────────────────────────────
+    "rel_humidity":  {"ES": "Humedad relativa media",  "EN": "Mean relative humidity"},
+    "wind_speed":    {"ES": "Velocidad viento media",  "EN": "Mean wind speed"},
+    "days_of_year":  {"ES": "Días del año (Enero → Diciembre)", "EN": "Days of year (Jan → Dec)"},
+
+    # ── PROJECT SUMMARY ──────────────────────────────────────────────────
+    "project_summary": {"ES": "Resumen del proyecto a simular", "EN": "Project summary"},
+    "sfr_design":      {"ES": "SFR diseño",                     "EN": "Design SFR"},
+
+    # ── 3D LABELS ────────────────────────────────────────────────────────
+    "width_label":   {"ES": "Ancho",   "EN": "Width"},
+    "length_label":  {"ES": "Largo",   "EN": "Length"},
+    "height_label":  {"ES": "Altura",  "EN": "Height"},
+
     # ── LANGUAGE SELECTOR ────────────────────────────────────────────────────
     "lang_selector":     {"ES": "Idioma / Language",                   "EN": "Idioma / Language"},
     "units_selector":    {"ES": "Sistema de unidades",                 "EN": "Unit system"},
@@ -481,5 +496,3 @@ def get_compliance_label(semaforo_key: str, lang: str) -> str:
     if entry:
         return entry.get(lang, entry["ES"])
     return semaforo_key
-
-
