@@ -475,6 +475,10 @@ STRINGS = {
         "ES": "Estamos calculando la curva de optimización completa (SFR 0%→6%) para <strong>{empresa}</strong>.<br>El reporte técnico PDF llegará a <strong>{correo}</strong> en aproximadamente <strong>{mins} minutos</strong>.<br><br>Puedes cerrar esta ventana — el análisis continuará en la nube.",
         "EN": "We are computing the full optimization curve (SFR 0%→6%) for <strong>{empresa}</strong>.<br>The technical PDF report will be sent to <strong>{correo}</strong> in approximately <strong>{mins} minutes</strong>.<br><br>You can close this window — the analysis will continue in the cloud."},
 
+
+    "active_climate":  {"ES": "Clima activo",   "EN": "Active climate"},
+    "distance_label":  {"ES": "Distancia",       "EN": "Distance"},
+
     # ── LANGUAGE SELECTOR ────────────────────────────────────────────────────
     "lang_selector":     {"ES": "Idioma / Language",                   "EN": "Idioma / Language"},
     "units_selector":    {"ES": "Sistema de unidades",                 "EN": "Unit system"},
