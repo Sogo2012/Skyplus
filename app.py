@@ -692,23 +692,49 @@ with st.sidebar:
         </div>
         """, unsafe_allow_html=True)
 
-    # ── Lang toggle — unidades vinculadas al idioma ─────────────────────
-    st.markdown("<div style='height:8px'></div>", unsafe_allow_html=True)
-    _lang_toggle = st.radio(
-        "lang_toggle",
-        options=["Español", "English"],
-        index=0 if st.session_state.lang == "ES" else 1,
-        horizontal=True,
-        key="lang_radio",
-        label_visibility="collapsed",
+    # ── Lang toggle — responsivo, funciona en cualquier ancho ────────────
+    st.markdown("""
+    <style>
+    /* Selector de idioma — responsivo */
+    div[data-testid="stToggle"] {
+        display: flex !important;
+        align-items: center !important;
+        gap: 6px !important;
+        min-width: 0 !important;
+        flex-wrap: nowrap !important;
+    }
+    div[data-testid="stToggle"] label {
+        font-size: 13px !important;
+        font-weight: 600 !important;
+        white-space: nowrap !important;
+        overflow: visible !important;
+        min-width: 0 !important;
+    }
+    div[data-testid="stToggle"] p {
+        white-space: nowrap !important;
+        font-size: 13px !important;
+    }
+    </style>
+    """, unsafe_allow_html=True)
+
+    st.markdown("<div style='height:6px'></div>", unsafe_allow_html=True)
+
+    # Toggle: OFF = Español 🇲🇽 / ON = English 🇺🇸
+    _is_english = st.toggle(
+        "ES  /  EN",
+        value=(st.session_state.lang == "EN"),
+        key="lang_toggle_v2",
+        help="Cambiar idioma / Switch language",
     )
+
     # Regla de oro: idioma vincula unidades automáticamente
-    if _lang_toggle == "Español":
-        st.session_state.lang  = "ES"
-        st.session_state.units = "metric"
-    else:
+    if _is_english:
         st.session_state.lang  = "EN"
         st.session_state.units = "imperial"
+    else:
+        st.session_state.lang  = "ES"
+        st.session_state.units = "metric"
+
     _L = st.session_state.lang
     _U = st.session_state.units
     st.markdown("<div style='height:4px'></div>", unsafe_allow_html=True)
