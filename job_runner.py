@@ -655,10 +655,10 @@ def generar_pdf(config, resultado, lead):
     story.append(Paragraph(T("pdf_table_title", _L), s_h2))
 
     sem_map = {
-        "Subiluminado (<150 lux)":      "⚫ Subiluminado",
-        "Confort óptimo (ISO+IES)":      "Confort optimo",
-        "Límite UDI-Autonomous":         "Limite UDI",
-        "Sobreiluminación UDI-Exceeded": "Sobreiluminacion",
+        "Subiluminado (<150 lux)":       get_compliance_label("Subiluminado (<150 lux)",      _L),
+        "Confort óptimo (ISO+IES)":      get_compliance_label("Confort óptimo (ISO+IES)",     _L),
+        "Límite UDI-Autonomous":         get_compliance_label("Límite UDI-Autonomous",        _L),
+        "Sobreiluminación UDI-Exceeded": get_compliance_label("Sobreiluminación UDI-Exceeded",_L),
     }
     filas_t = [[T("pdf_col_sfr",_L), T("pdf_col_domos",_L), T("pdf_col_ah_luz",_L), T("pdf_col_pen_cool",_L),
                 T("pdf_col_neto",_L), T("pdf_col_pct",_L), T("pdf_col_lux",_L), T("pdf_col_sem",_L)]]
