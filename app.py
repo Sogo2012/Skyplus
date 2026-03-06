@@ -1414,9 +1414,10 @@ with tab_analitica:
                     domo_u       = float(datos_domo["U_Value"]),
                     domo_ancho_m = float(datos_domo["Ancho_m"]),
                     domo_largo_m = float(datos_domo["Largo_m"]),
-                    lang         = _L,
-                    units        = _U,
                 )
+                # Inyectar idioma y unidades — compatibles con cualquier versión del motor
+                config["lang"]  = _L
+                config["units"] = _U
                 resultado = simular_caso_diseno(config, callback=actualizar_progreso)
 
                 if resultado.get("error"):
