@@ -568,6 +568,23 @@ def page_header(title, subtitle=None):
 # =============================================================================
 @st.cache_data
 def cargar_catalogo():
+    # ── U-Values validados contra ficha técnica Sunoptics Serie 800MD ──────
+    # Fuente: Sunoptics Signature 800MD datasheet + ASHRAE Fundamentals
+    # Factor de conversión exacto: 1 BTU/hr·ft²·°F = 5.67826 W/m²K
+    #
+    # DGZ Double Glazed:  0.72 BTU/hr·ft²·°F → 4.08 W/m²K
+    # SGZ Single Glazed:  1.20 BTU/hr·ft²·°F → 6.81 W/m²K  (estándar acrílico sencillo)
+    # Storm Class 900SC:  asimilado a DGZ     → 4.08 W/m²K  (conservador)
+    # Smoke Vent SVT2:    asimilado a DGZ     → 4.08 W/m²K
+    #
+    # U_Value_IP: BTU/hr·ft²·°F  — base para display en sistema imperial
+    # U_Value:    W/m²K          — entrada a EnergyPlus (siempre SI)
+
+    # IP es la fuente de verdad (ficha técnica en BTU/hr·ft²·°F)
+    # SI se deriva para EnergyPlus — factor exacto ASHRAE: 1 BTU/hr·ft²·°F = 5.67826 W/m²K
+    _SGZ_IP = 1.20;  _SGZ_SI = round(_SGZ_IP * 5.67826, 4)   # 6.8139 → muestra 1.200 en imperial
+    _DGZ_IP = 0.72;  _DGZ_SI = round(_DGZ_IP * 5.67826, 4)   # 4.0884 → muestra 0.720 en imperial
+
     data = {
         'Modelo': [
             'Signature 800MD 4040 SGZ', 'Signature 800MD 4040 DGZ',
@@ -577,13 +594,16 @@ def cargar_catalogo():
         ],
         'Acristalamiento': [
             'Sencillo (SGZ)', 'Doble (DGZ)', 'Sencillo (SGZ)', 'Doble (DGZ)',
-            'Sencillo (SGZ)', 'Doble (DGZ)', 'Storm Class', 'Doble (DGZ)',
+            'Sencillo (SGZ)', 'Doble (DGZ)', 'Storm Class',    'Doble (DGZ)',
         ],
-        'VLT':     [0.74, 0.67, 0.74, 0.67, 0.74, 0.67, 0.52, 0.64],
-        'SHGC':    [0.68, 0.48, 0.68, 0.48, 0.68, 0.48, 0.24, 0.31],
-        'U_Value': [5.80, 3.20, 5.80, 3.20, 5.80, 3.20, 2.80, 3.20],
-        'Ancho_in': [51.25, 51.25, 51.25, 51.25, 52.25, 52.25, 52.25, 52.25],
-        'Largo_in': [51.25, 51.25, 87.25, 87.25, 100.25, 100.25, 100.25, 100.25],
+        'VLT':        [0.74,    0.67,    0.74,    0.67,    0.74,    0.67,    0.52,    0.64   ],
+        'SHGC':       [0.68,    0.48,    0.68,    0.48,    0.68,    0.48,    0.24,    0.31   ],
+        # SI — W/m²K — lo que entra a EnergyPlus
+        'U_Value':    [_SGZ_SI, _DGZ_SI, _SGZ_SI, _DGZ_SI, _SGZ_SI, _DGZ_SI, _DGZ_SI, _DGZ_SI],
+        # Imperial — BTU/hr·ft²·°F — solo para display cuando _U == 'imperial'
+        'U_Value_IP': [_SGZ_IP, _DGZ_IP, _SGZ_IP, _DGZ_IP, _SGZ_IP, _DGZ_IP, _DGZ_IP, _DGZ_IP],
+        'Ancho_in':   [51.25,   51.25,   51.25,   51.25,   52.25,   52.25,   52.25,   52.25  ],
+        'Largo_in':   [51.25,   51.25,   87.25,   87.25,   100.25,  100.25,  100.25,  100.25 ],
     }
     df = pd.DataFrame(data)
     df['Ancho_m'] = (df['Ancho_in'] * 0.0254).round(3)
