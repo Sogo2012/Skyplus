@@ -454,6 +454,33 @@ with st.sidebar:
     st.markdown(f'<div class="eco-sidebar-section">{T("sidebar_02", _L)}</div>', unsafe_allow_html=True)
 
     _FT2M = 1 / CONVERSION["m_to_ft"]
+    _M2FT = CONVERSION["m_to_ft"]
+
+    # ── FIX v22.4 — Conversión de unidades al cambiar el toggle ──────────
+    # CAUSA RAÍZ DEL BUG: cuando el usuario cambia ES↔EN, los valores
+    # almacenados en st.session_state["ni_ancho/largo/alto"] están en las
+    # unidades ANTERIORES. Si ese valor está fuera del rango min/max de las
+    # nuevas unidades, Streamlit lanza una excepción ANTES de ejecutar la
+    # línea _ancho_usr = st.number_input(...), dejando _ancho_usr sin asignar.
+    # Ejemplo: 10 m (mín métrico) < 33 ft (mín imperial) → crash al ir ES→EN.
+    # Ejemplo: 200 ft > 140 m (máx métrico) → crash al ir EN→ES.
+    # SOLUCIÓN: detectar el cambio de unidades y convertir + clampear los
+    # valores del widget ANTES de que number_input los lea.
+    _prev_u = st.session_state.get("_prev_units", _U)
+    if _prev_u != _U:
+        _a = st.session_state.get("ni_ancho", 50.0)
+        _l = st.session_state.get("ni_largo", 100.0)
+        _h = st.session_state.get("ni_alto",  8.0)
+        if _U == "imperial":  # metric → imperial: multiplicar por m_to_ft
+            st.session_state["ni_ancho"] = float(min(460.0, max(33.0,  round(_a * _M2FT))))
+            st.session_state["ni_largo"] = float(min(460.0, max(33.0,  round(_l * _M2FT))))
+            st.session_state["ni_alto"]  = float(min(100.0, max(10.0,  round(_h * _M2FT))))
+        else:                 # imperial → metric: dividir por m_to_ft
+            st.session_state["ni_ancho"] = float(min(140.0, max(10.0,  round(_a / _M2FT))))
+            st.session_state["ni_largo"] = float(min(140.0, max(10.0,  round(_l / _M2FT))))
+            st.session_state["ni_alto"]  = float(min(30.0,  max(3.0,   round(_h / _M2FT * 2) / 2)))
+    st.session_state["_prev_units"] = _U
+    # ─────────────────────────────────────────────────────────────────────
 
     if _U == "imperial":
         _w_min, _w_max, _w_def, _w_step = 33.0,  460.0, 164.0, 1.0
@@ -464,10 +491,8 @@ with st.sidebar:
         _l_min, _l_max, _l_def, _l_step = 10.0,  140.0, 100.0, 1.0
         _h_min, _h_max, _h_def, _h_step =  3.0,   30.0,   8.0, 0.5
 
-    # ── FIX v22.3 — key fija, sin _{_U} ──────────────────────────────────
-    # El label, min/max/value/step ya cambian con _U.
-    # La key NO debe cambiar: si cambia, Streamlit destruye el widget en el
-    # rerun post-toggle → UnboundLocalError en el body.
+    # Key fija (sin _{_U}): el label/min/max/step cambian con _U,
+    # pero la key es estable para que Streamlit no destruya el widget.
     _ancho_usr = st.number_input(T("width_m",  _L), min_value=_w_min, max_value=_w_max, value=_w_def, step=_w_step, key="ni_ancho")
     _largo_usr = st.number_input(T("length_m", _L), min_value=_l_min, max_value=_l_max, value=_l_def, step=_l_step, key="ni_largo")
     _alto_usr  = st.number_input(T("height_m", _L), min_value=_h_min, max_value=_h_max, value=_h_def, step=_h_step, key="ni_alto")
