@@ -637,7 +637,7 @@ def buscar_estaciones():
         if df is None or df.empty:
             st.error("No se encontraron estaciones para esta ubicación.")
         else:
-            st.success(f"{len(df)} estaciones encontradas.")
+            st.success(f"{len(df)} {T('stations_found', _L)}")
 
 
 # =============================================================================
@@ -672,32 +672,25 @@ with st.sidebar:
         </div>
         """, unsafe_allow_html=True)
 
-    # ── Lang / Units selector ────────────────────────────────────────────
+    # ── Lang toggle — unidades vinculadas al idioma ─────────────────────
     st.markdown("<div style='height:8px'></div>", unsafe_allow_html=True)
-    _col_lang, _col_units = st.columns(2)
-    with _col_lang:
-        _lang_choice = st.selectbox(
-            "🌐 Idioma",
-            options=["ES", "EN"],
-            index=0 if st.session_state.lang == "ES" else 1,
-            key="lang_select",
-            label_visibility="collapsed",
-            format_func=lambda x: "🇲🇽 Español" if x == "ES" else "🇺🇸 English",
-        )
-        st.session_state.lang = _lang_choice
-    with _col_units:
-        _units_choice = st.selectbox(
-            "📐 Units",
-            options=["metric", "imperial"],
-            index=0 if st.session_state.units == "metric" else 1,
-            key="units_select",
-            label_visibility="collapsed",
-            format_func=lambda x: "m · kWh · lux" if x == "metric" else "ft · kBtu · fc",
-        )
-        st.session_state.units = _units_choice
-    # Shortcuts
-    _L  = st.session_state.lang
-    _U  = st.session_state.units
+    _lang_toggle = st.radio(
+        "lang_toggle",
+        options=["Español", "English"],
+        index=0 if st.session_state.lang == "ES" else 1,
+        horizontal=True,
+        key="lang_radio",
+        label_visibility="collapsed",
+    )
+    # Regla de oro: idioma vincula unidades automáticamente
+    if _lang_toggle == "Español":
+        st.session_state.lang  = "ES"
+        st.session_state.units = "metric"
+    else:
+        st.session_state.lang  = "EN"
+        st.session_state.units = "imperial"
+    _L = st.session_state.lang
+    _U = st.session_state.units
     st.markdown("<div style='height:4px'></div>", unsafe_allow_html=True)
 
     # ── 1. Ubicación ──────────────────────────────────────────────────────
@@ -744,14 +737,41 @@ with st.sidebar:
     st.markdown(f'<div class="eco-sidebar-section">{T("sidebar_02", _L)}</div>',
                 unsafe_allow_html=True)
 
-    ancho_nave = st.number_input(T("width_m", _L),  min_value=10.0, max_value=140.0, value=50.0,  step=1.0)
-    largo_nave = st.number_input(T("length_m", _L),  min_value=10.0, max_value=140.0, value=100.0, step=1.0)
-    alto_nave  = st.number_input(T("height_m", _L), min_value=3.0,  max_value=30.0,  value=8.0,   step=0.5)
+    # Rangos en unidades del usuario (ft si imperial, m si métrico)
+    _FT2M = 1 / CONVERSION["m_to_ft"]   # 0.3048 — solo se usa internamente
+    if _U == "imperial":
+        _w_min, _w_max, _w_def, _w_step = 33.0,  460.0, 164.0, 1.0
+        _l_min, _l_max, _l_def, _l_step = 33.0,  460.0, 328.0, 1.0
+        _h_min, _h_max, _h_def, _h_step = 10.0,  100.0,  26.0, 1.0
+    else:
+        _w_min, _w_max, _w_def, _w_step = 10.0,  140.0,  50.0, 1.0
+        _l_min, _l_max, _l_def, _l_step = 10.0,  140.0, 100.0, 1.0
+        _h_min, _h_max, _h_def, _h_step =  3.0,   30.0,   8.0, 0.5
 
-    area_nave = ancho_nave * largo_nave
+    # Lo que el usuario ve y escribe — en SUS unidades
+    _ancho_usr = st.number_input(T("width_m",  _L), min_value=_w_min, max_value=_w_max, value=_w_def, step=_w_step)
+    _largo_usr = st.number_input(T("length_m", _L), min_value=_l_min, max_value=_l_max, value=_l_def, step=_l_step)
+    _alto_usr  = st.number_input(T("height_m", _L), min_value=_h_min, max_value=_h_max, value=_h_def, step=_h_step)
+
+    # Conversión interna a metros SI — EnergyPlus solo acepta SI
+    # El usuario NUNCA ve estos valores, solo el motor los usa
+    if _U == "imperial":
+        ancho_nave = _ancho_usr * _FT2M
+        largo_nave = _largo_usr * _FT2M
+        alto_nave  = _alto_usr  * _FT2M
+    else:
+        ancho_nave = _ancho_usr
+        largo_nave = _largo_usr
+        alto_nave  = _alto_usr
+
+    # Área — mostrar en unidades del usuario
+    area_nave    = ancho_nave * largo_nave          # siempre en m² internamente
+    area_usr     = _ancho_usr * _largo_usr          # en ft² o m² según usuario
+    area_max_usr = 10_000 if _U == "metric" else 10_000 * CONVERSION["m2_to_ft2"]
+
     st.caption(f"{T('floor_area', _L)}: **{fmt_area(area_nave, _U)}**")
     if area_nave > 10_000:
-        st.markdown('<span class="eco-badge-warn">Requiere servicio BEM Premium</span>',
+        st.markdown(f'<span class="eco-badge-warn">{T("bem_required", _L)}</span>',
                     unsafe_allow_html=True)
 
     # ── 3. Tipo de uso ────────────────────────────────────────────────────
@@ -759,16 +779,11 @@ with st.sidebar:
                 unsafe_allow_html=True)
 
     tipo_uso = st.selectbox(
-        "Perfil ASHRAE 90.1",
+        "ASHRAE 90.1",
         options=["Warehouse", "Manufacturing", "Retail", "SuperMarket", "MediumOffice"],
-        format_func=lambda x: {
-            "Warehouse":     "Bodega / Warehouse",
-            "Manufacturing": "Manufactura",
-            "Retail":        "Retail / Tienda",
-            "SuperMarket":   "Supermercado",
-            "MediumOffice":  "Oficina Mediana",
-        }[x],
-        help="Define LPD, setpoints y horarios según ASHRAE 90.1-2019.",
+        format_func=lambda x: get_occupancy_label(x, _L),
+        help="LPD, setpoints & schedules per ASHRAE 90.1-2019." if _L == "EN"
+             else "Define LPD, setpoints y horarios según ASHRAE 90.1-2019.",
     )
 
     # ── 4. Domo Sunoptics ─────────────────────────────────────────────────
@@ -893,7 +908,7 @@ with tab_config:
                 st.rerun()
 
     with col2:
-        section_title("Estaciones disponibles")
+        section_title(T("stations_available", _L))
 
         if st.session_state.clima_data:
             st.markdown(f'<span class="eco-badge-ok">Clima activo</span><br>'
@@ -903,7 +918,7 @@ with tab_config:
             st.markdown("<div style='height:8px'></div>", unsafe_allow_html=True)
 
         if st.session_state.df_cercanas is not None and not st.session_state.df_cercanas.empty:
-            st.caption("Selecciona una estación para descargar el archivo .epw:")
+            st.caption(T("select_station", _L))
 
             for idx, row in st.session_state.df_cercanas.iterrows():
                 st_name = row.get('name') or row.get('Station') or f"Estación {idx}"
@@ -950,11 +965,11 @@ with tab_clima:
         md    = clima.get('metadata', {})
 
         render_cards([
-            {"label": "Latitud",                 "value": f"{md.get('lat', st.session_state.lat):.1f}°N"},
-            {"label": "Longitud",                "value": f"{md.get('lon', st.session_state.lon):.1f}°W"},
+            {"label": T("latitude", _L),  "value": f"{md.get('lat', st.session_state.lat):.1f}°N"},
+            {"label": T("longitude", _L), "value": f"{md.get('lon', st.session_state.lon):.1f}°W"},
             {"label": "Elevación",               "value": f"{int(round(md.get('elevacion', 0)))} m"},
-            {"label": "Humedad relativa media",  "value": f"{round(sum(clima.get('hum_relativa',[0]))/8760)} %"},
-            {"label": "Velocidad viento media",  "value": f"{round(sum(clima.get('vel_viento',[0]))/8760, 1)} m/s"},
+            {"label": T("rel_humidity", _L),     "value": f"{round(sum(clima.get('hum_relativa',[0]))/8760)} %"},
+            {"label": T("wind_speed", _L),       "value": f"{round(sum(clima.get('vel_viento',[0]))/8760, 1)} m/s"},
         ])
 
         st.markdown("<div style='height:16px'></div>", unsafe_allow_html=True)
@@ -1023,7 +1038,7 @@ with tab_clima:
                 hovertemplate="Día %{x} · Hora %{y}:00 · %{z:.1f} °C<extra></extra>",
             ))
             fig_calor.update_layout(
-                xaxis_title="Días del año (Enero → Diciembre)",
+                xaxis_title=(T("days_of_year", _L)),
                 yaxis_title="Hora del día",
                 yaxis=dict(tickmode='linear', tick0=0, dtick=4),
                 margin=dict(t=10, b=30, l=40, r=20),
@@ -1052,7 +1067,11 @@ with tab_clima:
             df_nubes  = pd.DataFrame({'Fecha': fechas, 'Nubosidad': np.array(nubes_array) * 10})
             df_nubes['Mes'] = df_nubes['Fecha'].dt.month
             nubes_mensual = df_nubes.groupby('Mes')['Nubosidad'].mean()
-            meses_labels  = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic']
+            meses_labels  = (
+            ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic']
+            if _L == "ES" else
+            ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
+        )
             fig_nubes = go.Figure(data=[go.Bar(
                 x=meses_labels, y=nubes_mensual,
                 marker_color=ECO_GRIS,
@@ -1113,7 +1132,12 @@ with tab_3d:
         datos_domo = st.session_state.datos_domo_actual
         domo_ancho = float(datos_domo['Ancho_m'])
         domo_largo = float(datos_domo['Largo_m'])
-        A, L, H    = ancho_nave, largo_nave, alto_nave
+        # A, L, H en unidades del USUARIO para todo el render visual
+        # Los metros internos solo van al motor — aquí el usuario ve sus propias unidades
+        A, L, H    = _ancho_usr, _largo_usr, _alto_usr
+        # Domos del catálogo están en metros → convertir para render visual
+        _domo_a_vis = domo_ancho * CONVERSION["m_to_ft"] if _U == "imperial" else domo_ancho
+        _domo_l_vis = domo_largo * CONVERSION["m_to_ft"] if _U == "imperial" else domo_largo
 
         if sfr_pct <= 3.0:
             st.markdown(f'<span class="eco-badge-ok">{T("ashrae_compliant", _L)}</span>', unsafe_allow_html=True)
@@ -1123,8 +1147,8 @@ with tab_3d:
             st.markdown(f'<span class="eco-badge-warn">{T("ashrae_exceeds", _L)}</span>', unsafe_allow_html=True)
 
         render_cards([
-            {"label": "Domos generados",     "value": f"{num_domos} uds"},
-            {"label": "SFR real del modelo", "value": f"{sfr_pct:.2f} %"},
+            {"label": T("skylights_count",_L),     "value": f"{num_domos} uds"},
+            {"label": T("sfr_real",_L), "value": f"{sfr_pct:.2f} %"},
         ])
 
         st.divider()
@@ -1169,8 +1193,8 @@ with tab_3d:
         for ci in range(cols_d):
             for ri in range(rows_d):
                 cx=ci*dx_d+dx_d/2; cy=ri*dy_d+dy_d/2
-                x0d=cx-domo_ancho/2; x1d=cx+domo_ancho/2
-                y0d=cy-domo_largo/2; y1d=cy+domo_largo/2
+                x0d=cx-_domo_a_vis/2; x1d=cx+_domo_a_vis/2
+                y0d=cy-_domo_l_vis/2; y1d=cy+_domo_l_vis/2
                 fig3d.add_trace(go.Mesh3d(
                     x=[x0d,x1d,x1d,x0d],y=[y0d,y0d,y1d,y1d],z=[H+0.05]*4,
                     i=[0,0],j=[1,2],k=[2,3],color=COL_DOMO,opacity=0.9,
@@ -1179,7 +1203,7 @@ with tab_3d:
         # Leyenda limpia sin marcadores centroide
         fig3d.add_trace(go.Scatter3d(x=[None],y=[None],z=[None],mode='markers',
             marker=dict(size=6,color=COL_DOMO,symbol='square'),
-            name=f"Domos Sunoptics® ({num_domos} uds)",showlegend=True,
+            name=f"Sunoptics® Skylights ({num_domos})" if _L=="EN" else f"Domos Sunoptics® ({num_domos} uds)",showlegend=True,
             hoverinfo='skip'))
 
         # Sunpath
@@ -1217,11 +1241,11 @@ with tab_3d:
 
         fig3d.update_layout(
             scene=dict(
-                xaxis=dict(title=f"Ancho ({A:.0f}m)",backgroundcolor="rgba(245,240,230,0.8)",
+                xaxis=dict(title=f"{T('width_label',_L)} ({A:.0f} {T('units_m',_L)})",backgroundcolor="rgba(245,240,230,0.8)",
                     gridcolor="#D4B896",showbackground=True),
-                yaxis=dict(title=f"Largo ({L:.0f}m)",backgroundcolor="rgba(245,240,230,0.8)",
+                yaxis=dict(title=f"{T('length_label',_L)} ({L:.0f} {T('units_m',_L)})",backgroundcolor="rgba(245,240,230,0.8)",
                     gridcolor="#D4B896",showbackground=True),
-                zaxis=dict(title=f"Altura ({H:.0f}m)",backgroundcolor="rgba(220,210,200,0.5)",
+                zaxis=dict(title=f"{T('height_label',_L)} ({H:.0f} {T('units_m',_L)})",backgroundcolor="rgba(220,210,200,0.5)",
                     gridcolor="#C4A882",showbackground=True),
                 camera=dict(eye=dict(x=1.5,y=-1.8,z=1.2)),
                 aspectmode="data",
@@ -1231,7 +1255,7 @@ with tab_3d:
             legend=dict(x=0.01,y=0.99,bgcolor="rgba(255,255,255,0.8)",
                 bordercolor="#D4B896",borderwidth=1,font=dict(size=9)),
             title=dict(
-                text=f"Nave {A:.0f}×{L:.0f}×{H:.0f} m — {num_domos} domos Sunoptics® (SFR {sfr_pct:.1f}%)",
+                text=f"{_ancho_usr:.0f}×{_largo_usr:.0f}×{_alto_usr:.0f} {T('units_m',_L)} — {num_domos} {'Skylights' if _L=='EN' else 'domos'} Sunoptics® (SFR {sfr_pct:.1f}%)",
                 font=dict(size=11,color="#003C52"),x=0.5),
         )
         st.plotly_chart(fig3d, use_container_width=True)
@@ -1276,18 +1300,18 @@ with tab_analitica:
     datos_domo = df_domos[df_domos["Modelo"] == modelo_sel].iloc[0]
 
     # Resumen del proyecto
-    with st.expander("Resumen del proyecto a simular", expanded=True):
+    with st.expander(T("project_summary", _L), expanded=True):
         render_cards([
-            {"label": "Nave",  "value": f"{ancho_nave:.0f}×{largo_nave:.0f}×{alto_nave:.0f} m"},
-            {"label": "Área",  "value": f"{area_nave:,.0f} m²"},
-            {"label": "Uso",   "value": tipo_uso},
-            {"label": "Clima", "value": ciudad},
+            {"label": T("facility_label",_L), "value": fmt_dims(ancho_nave,largo_nave,alto_nave,_U)},
+            {"label": T("area_label",_L),     "value": fmt_area(area_nave,_U)},
+            {"label": T("pdf_use",_L),        "value": get_occupancy_label(tipo_uso,_L)},
+            {"label": T("climate_label",_L),  "value": ciudad},
         ], sm=True)
         st.markdown("<div style='height:4px'></div>", unsafe_allow_html=True)
         render_cards([
             {"label": "Domo",       "value": f"{modelo_sel.split(' ')[2]} {modelo_sel.split(' ')[3]}"},
-            {"label": "VLT",        "value": f"{datos_domo['VLT']:.0%}"},
-            {"label": "SFR diseño", "value": f"{sfr_target*100:.0f}%"},
+            {"label": T("vlt",_L),       "value": f"{datos_domo['VLT']:.0%}"},
+            {"label": T("sfr_design",_L), "value": f"{sfr_target*100:.0f}%"},
             {"label": "Motor",      "value": "EnergyPlus 23.2"},
         ], sm=True)
 
@@ -1399,8 +1423,8 @@ with tab_analitica:
             section_title(T("optimization_curve", _L))
             st.markdown(
                 f"Ingresa tus datos y calculamos la curva completa para tu nave de "
-                f"{ancho_nave:.0f}×{largo_nave:.0f} m. "
-                f"Recibirás el **reporte técnico PDF en tu correo** en aproximadamente {max(20, min(40, int(ancho_nave*largo_nave/1000)*3 + 20))} minutos."
+                f"{_ancho_usr:.0f}×{_largo_usr:.0f} {T('units_m',_L)}. "
+                f"{T('lead_subtitle_wait',_L)} {max(20, min(40, int(ancho_nave*largo_nave/1000)*3 + 20))} {T('minutes',_L)}."
             )
             st.markdown("<div style='height:8px'></div>", unsafe_allow_html=True)
 
@@ -1556,7 +1580,7 @@ with tab_analitica:
 
             render_cards([
                 {"label": "Estado",        "value": "Simulando en nube",  "delta": "7 simulaciones EnergyPlus", "green": True},
-                {"label": T("delivery_label", _L),       "value": f"~{max(20, min(40, int(ancho_nave*largo_nave/1000)*3 + 20))} minutos", "delta": f"A: {st.session_state.lead_correo}"},
+                {"label": T("delivery_label", _L),       "value": f"~{max(20, min(40, int(ancho_nave*largo_nave/1000)*3 + 20))} {'min'}", "delta": f"A: {st.session_state.lead_correo}"},
                 {"label": "Motor",         "value": "EnergyPlus 23.2",    "delta": "DOE oficial"},
                 {"label": T("analysis_label", _L),      "value": T("analysis_value", _L), "delta": T("analysis_delta", _L)},
             ])
