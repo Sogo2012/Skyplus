@@ -1,4 +1,17 @@
 # motor/termico.py
+import sys, os
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+try:
+    from i18n import T, fmt_energy, fmt_illuminance, fmt_dims, get_compliance_label, CONVERSION
+    _I18N_OK = True
+except ImportError:
+    _I18N_OK = False
+    def T(k, lang="ES"): return k
+    def fmt_energy(v, u): return f"{v:,.0f} kWh/año"
+    def fmt_illuminance(v, u, d=0): return f"{v:.{d}f} lux"
+    def fmt_dims(a,l,h,u): return f"{a:.0f}×{l:.0f}×{h:.0f} m"
+    def get_compliance_label(k, lang): return k
+    CONVERSION = {"m_to_ft": 3.28084, "kwh_to_kbtu": 3.41214, "lux_to_fc": 0.09290}
 # =============================================================================
 # SKYPLUS — Motor Térmico v22.2
 # Eco Consultor | Sunoptics LATAM
@@ -964,7 +977,7 @@ def simular_caso_diseno(config, callback=None):
     except Exception as e:
         return {"error": str(e), "figura": None}
 
-    _cb(2, 2, "Calculando resultados...")
+    _cb(2, 2, ("Calculating results..." if _L=="EN" else "Calculando resultados..."))
 
     # Split-Flux
     kwh_luz_b  = res_base["kwh_iluminacion"]
@@ -992,19 +1005,19 @@ def simular_caso_diseno(config, callback=None):
     sem_col_dis = luz["semaforo_color"][1]
 
     # Gráfica comparativa Base vs Diseño
-    categorias = ["Iluminación", "Cooling", "Heating"]
+    categorias = (["Lighting", "Cooling", "Heating"] if _L == "EN" else ["Iluminación", "Cooling", "Heating"])
     vals_base   = [kwh_luz_b, kwh_cool_b, kwh_heat_b]
     vals_dis    = [kwh_luz_d, kwh_cool_d, kwh_heat_d]
 
     fig = go.Figure()
     fig.add_trace(go.Bar(
-        name="Caso Base (Sin domos)",
+        name=("Baseline (No skylights)" if _L=="EN" else "Caso Base (Sin domos)"),
         x=categorias, y=vals_base,
         marker_color="#e74c3c",
         text=[f"{v:,.0f}" for v in vals_base], textposition="auto",
     ))
     fig.add_trace(go.Bar(
-        name=f"Caso Diseño (SFR={sfr_pct}%)",
+        name=(f"Design case (SFR={sfr_pct}%)" if _L=="EN" else f"Caso Diseño (SFR={sfr_pct}%)"),
         x=categorias, y=vals_dis,
         marker_color="#2ecc71",
         text=[f"{v:,.0f}" for v in vals_dis], textposition="auto",
@@ -1012,16 +1025,16 @@ def simular_caso_diseno(config, callback=None):
     fig.update_layout(
         barmode="group",
         title=dict(
-            text=f"SkyPlus — Resultado Energético | {tipo_uso} {ancho:.0f}×{largo:.0f}m | SFR={sfr_pct}%",
+            text=(f"SkyPlus — Energy Results | {tipo_uso} {ancho:.0f}×{largo:.0f}m | SFR={sfr_pct}%" if _L=="EN" else f"SkyPlus — Resultado Energético | {tipo_uso} {ancho:.0f}×{largo:.0f}m | SFR={sfr_pct}%"),
             font=dict(size=15)
         ),
-        yaxis_title="Energía (kWh/año)",
+        yaxis_title=("Energy (kBtu/yr)" if _L=="EN" else "Energía (kWh/año)"),
         template="plotly_white",
         legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
         height=420,
         annotations=[dict(
             x=0.5, y=1.15, xref="paper", yref="paper",
-            text=f"<b>Ahorro neto: {ahorro_neto:,.0f} kWh/año ({pct_ahorro:.1f}%)</b>",
+            text=(f"<b>Net savings: {ahorro_neto*CONVERSION['kwh_to_kbtu']:,.0f} kBtu/yr ({pct_ahorro:.1f}%)</b>" if _L=="EN" else f"<b>Ahorro neto: {ahorro_neto:,.0f} kWh/año ({pct_ahorro:.1f}%)</b>"),
             showarrow=False, font=dict(size=14, color="#2ecc71"),
             bgcolor="white", bordercolor="#2ecc71", borderwidth=1,
         )],
@@ -1029,15 +1042,33 @@ def simular_caso_diseno(config, callback=None):
 
     # Texto de recomendación
     lux_setpoint = PERFILES_ASHRAE.get(tipo_uso, PERFILES_ASHRAE["Warehouse"])["lux"]
-    recomendacion = (
-        f"**Tu nave de {ancho:.0f}×{largo:.0f}m con SFR={sfr_pct}% ahorra "
-        f"{ahorro_neto:,.0f} kWh/año ({pct_ahorro:.1f}%)**\n\n"
-        f"Con **{n_domos} domos** instalados, la iluminancia promedio alcanza "
-        f"**{fc_lux_dis:.0f} lux** — {sem_txt_dis}.\n\n"
-        f"*Resultados generados por EnergyPlus 23.2 (DOE oficial). "
-        f"¿Quieres ver la curva completa SFR 0%→6% y la tabla de optimización? "
-        f"Solicita el reporte PDF completo.*"
-    )
+    _dim_str = (f"{_ancho_usr:.0f}×{_largo_usr:.0f} ft" if _U=="imperial"
+               else f"{ancho:.0f}×{largo:.0f}m")
+    _ancho_usr = ancho * _FT if _U=="imperial" else ancho
+    _largo_usr = largo * _FT if _U=="imperial" else largo
+    _dim_str   = f"{_ancho_usr:.0f}×{_largo_usr:.0f} {'ft' if _U=='imperial' else 'm'}"
+    _sky_word  = "skylights" if _L=="EN" else "domos"
+    _lux_str   = fmt_illuminance(fc_lux_dis, _U, 0)
+    _nrg_str   = fmt_energy(ahorro_neto, _U)
+    _sem_str   = get_compliance_label(sem_txt_dis, _L)
+    if _L == "EN":
+        recomendacion = (
+            f"**Your {_dim_str} facility with SFR={sfr_pct}% saves {_nrg_str} ({pct_ahorro:.1f}%)**\n\n"
+            f"With **{n_domos} {_sky_word}** installed, average illuminance reaches "
+            f"**{_lux_str}** — {_sem_str}.\n\n"
+            f"*Results generated by EnergyPlus 23.2 (DOE). "
+            f"Want to see the full SFR 0%→6% curve and optimization table? "
+            f"Request the complete PDF report.*"
+        )
+    else:
+        recomendacion = (
+            f"**Tu nave de {_dim_str} con SFR={sfr_pct}% ahorra {_nrg_str} ({pct_ahorro:.1f}%)**\n\n"
+            f"Con **{n_domos} {_sky_word}** instalados, la iluminancia promedio alcanza "
+            f"**{_lux_str}** — {_sem_str}.\n\n"
+            f"*Resultados generados por EnergyPlus 23.2 (DOE oficial). "
+            f"¿Quieres ver la curva completa SFR 0%→6% y la tabla de optimización? "
+            f"Solicita el reporte PDF completo.*"
+        )
 
     return {
         "kwh_base":        kwh_base,
@@ -1196,79 +1227,79 @@ def calcular_curva_sfr(config, callback=None, sql_base_existente=None):
     df_tabla = pd.DataFrame({
         "SFR %":            sfr_vals,
         "Domos":            [r["n_domos"]  for r in resultados_curva],
-        "Ah. Luz (kWh)":    [round(v) for v in ah_luz_vals],
-        "Pen. Cool (kWh)":  [round(-v) for v in pen_cool_vals],
-        "Ah. Heat (kWh)":   [round(v) for v in ah_heat_vals],
-        "NETO (kWh)":       [round(v) for v in neto_vals],
+        ("Lighting sav. (kBtu)" if _L=="EN" else "Ah. Luz (kWh)"):    [round(v) for v in ah_luz_vals],
+        ("Cool penalty (kBtu)" if _L=="EN" else "Pen. Cool (kWh)"):  [round(-v) for v in pen_cool_vals],
+        ("Heat sav. (kBtu)" if _L=="EN" else "Ah. Heat (kWh)"):   [round(v) for v in ah_heat_vals],
+        ("NET (kBtu)" if _L=="EN" else "NETO (kWh)"):       [round(v) for v in neto_vals],
         "% Base":           [round(n / kwh_base_total * 100, 1) for n in neto_vals],
-        "fc (lux)":         fc_lux,
-        "Semáforo":         sem_txt,
+        ("fc (fc)" if _L=="EN" else "fc (lux)"):         fc_lux,
+        ("Compliance" if _L=="EN" else "Semáforo"):         sem_txt,
     })
 
     # Figura Plotly dual-eje
     fig = make_subplots(specs=[[{"secondary_y": True}]])
 
-    fig.add_trace(go.Scatter(x=sfr_vals, y=ah_luz_vals, name="Ahorro Iluminación",
+    fig.add_trace(go.Scatter(x=sfr_vals, y=ah_luz_vals, name=("Lighting savings" if _L=="EN" else "Ahorro Iluminación"),
         line=dict(color="#3498db", dash="dash", width=2),
-        hovertemplate="SFR %{x:.0f}%<br>Ahorro luz: %{y:,.0f} kWh<extra></extra>"), secondary_y=False)
+        hovertemplate=("SFR %{x:.0f}%<br>Lighting: %{y:,.0f} kWh<extra></extra>" if _L=="EN" else "SFR %{x:.0f}%<br>Ahorro luz: %{y:,.0f} kWh<extra></extra>")), secondary_y=False)
 
-    fig.add_trace(go.Scatter(x=sfr_vals, y=[-v for v in pen_cool_vals], name="Penalización Cooling",
+    fig.add_trace(go.Scatter(x=sfr_vals, y=[-v for v in pen_cool_vals], name=("Cooling penalty" if _L=="EN" else "Penalización Cooling"),
         line=dict(color="#e74c3c", width=2),
-        hovertemplate="SFR %{x:.0f}%<br>Pen. cooling: %{y:,.0f} kWh<extra></extra>"), secondary_y=False)
+        hovertemplate=("SFR %{x:.0f}%<br>Cooling penalty: %{y:,.0f} kWh<extra></extra>" if _L=="EN" else "SFR %{x:.0f}%<br>Pen. cooling: %{y:,.0f} kWh<extra></extra>")), secondary_y=False)
 
     if any(v != 0 for v in ah_heat_vals):
-        fig.add_trace(go.Scatter(x=sfr_vals, y=ah_heat_vals, name="Ahorro Heating",
+        fig.add_trace(go.Scatter(x=sfr_vals, y=ah_heat_vals, name=("Heating savings" if _L=="EN" else "Ahorro Heating"),
             line=dict(color="#f39c12", dash="dot", width=2)), secondary_y=False)
 
-    fig.add_trace(go.Scatter(x=sfr_vals, y=neto_vals, name="Ahorro Neto Total",
+    fig.add_trace(go.Scatter(x=sfr_vals, y=neto_vals, name=("Net total savings" if _L=="EN" else "Ahorro Neto Total"),
         line=dict(color="#2ecc71", width=4),
-        hovertemplate="SFR %{x:.0f}%<br>Ahorro neto: %{y:,.0f} kWh<extra></extra>"), secondary_y=False)
+        hovertemplate=("SFR %{x:.0f}%<br>Net savings: %{y:,.0f} kWh<extra></extra>" if _L=="EN" else "SFR %{x:.0f}%<br>Ahorro neto: %{y:,.0f} kWh<extra></extra>")), secondary_y=False)
 
     fig.add_trace(go.Scatter(x=[sfr_opt], y=[neto_opt],
-        name=f"Óptimo Energético SFR={sfr_opt}%", mode="markers",
+        name=(f"Energy Optimal SFR={sfr_opt}%" if _L=="EN" else f"Óptimo Energético SFR={sfr_opt}%"), mode="markers",
         marker=dict(color="#2ecc71", size=14, symbol="star", line=dict(color="white", width=2)),
         hovertemplate=f"ÓPTIMO ENERGÍA: {sfr_opt}%<br>Ahorro: {neto_opt:,.0f} kWh/año<extra></extra>"), secondary_y=False)
 
     if sfr_dual is not None:
         idx_d = sfr_vals.index(sfr_dual)
         fig.add_trace(go.Scatter(x=[sfr_dual], y=[neto_vals[idx_d]],
-            name=f"Óptimo Dual SFR={sfr_dual}%", mode="markers",
+            name=(f"Dual Optimal SFR={sfr_dual}%" if _L=="EN" else f"Óptimo Dual SFR={sfr_dual}%"), mode="markers",
             marker=dict(color="#f39c12", size=14, symbol="diamond", line=dict(color="white", width=2)),
             hovertemplate=f"ÓPTIMO DUAL: {sfr_dual}%<br>Ahorro: {neto_vals[idx_d]:,.0f} kWh<br>fc: {fc_lux[idx_d]:.0f} lux<br>{sem_txt[idx_d]}<extra></extra>"), secondary_y=False)
 
-    fig.add_trace(go.Scatter(x=sfr_vals, y=fc_lux, name="Iluminancia Promedio EPW (lux)",
+    fig.add_trace(go.Scatter(x=sfr_vals, y=fc_lux, name=("Average illuminance EPW" if _L=="EN" else "Iluminancia Promedio EPW (lux)"),
         line=dict(color="#9b59b6", dash="dot", width=2),
-        hovertemplate="SFR %{x:.0f}%<br>fc: %{y:.0f} lux<extra></extra>"), secondary_y=True)
+        hovertemplate=("SFR %{x:.0f}%<br>fc: %{y:.0f} fc<extra></extra>" if _L=="EN" else "SFR %{x:.0f}%<br>fc: %{y:.0f} lux<extra></extra>")), secondary_y=True)
 
     bar_h = max(fc_lux) * 0.08 if max(fc_lux) > 0 else 50
-    fig.add_trace(go.Bar(x=sfr_vals, y=[bar_h] * len(sfr_vals), name="Confort visual",
+    fig.add_trace(go.Bar(x=sfr_vals, y=[bar_h] * len(sfr_vals), name=("Visual comfort" if _L=="EN" else "Confort visual"),
         marker_color=sem_color, opacity=0.45, showlegend=False,
         hovertemplate=[f"{s}% - {sem_txt[j]}" for j, s in enumerate(sfr_vals)]), secondary_y=True)
 
     for lux_ref, col, lbl in [
-        (lux_setpoint,  "#27ae60", f"Setpoint ({lux_setpoint:.0f} lux)"),
-        (UMBRAL_OPTIMO, "#f39c12", f"Límite IES RP-7 ({UMBRAL_OPTIMO:.0f} lux)"),
-        (UMBRAL_LIMITE, "#e74c3c", f"UDI-Exceeded ({UMBRAL_LIMITE:.0f} lux)"),
+        (lux_setpoint,  "#27ae60", f"Setpoint ({lux_setpoint*CONVERSION['lux_to_fc']:.0f} fc)" if _L=="EN" else f"Setpoint ({lux_setpoint:.0f} lux)"),
+        (UMBRAL_OPTIMO, "#f39c12", f"IES RP-7 limit ({UMBRAL_OPTIMO*CONVERSION['lux_to_fc']:.0f} fc)" if _L=="EN" else f"Límite IES RP-7 ({UMBRAL_OPTIMO:.0f} lux)"),
+        (UMBRAL_LIMITE, "#e74c3c", f"UDI-Exceeded ({UMBRAL_LIMITE*CONVERSION['lux_to_fc']:.0f} fc)" if _L=="EN" else f"UDI-Exceeded ({UMBRAL_LIMITE:.0f} lux)"),
     ]:
         fig.add_hline(y=lux_ref, line_dash="dash", line_color=col, opacity=0.55,
                       annotation_text=lbl, annotation_position="right", secondary_y=True)
 
     fig.update_layout(
-        title=dict(text=f"SkyPlus — Curva de Diseño Óptimo | {tipo_uso} {ancho:.0f}×{largo:.0f}m", font=dict(size=15)),
+        title=dict(text=(f"SkyPlus — Optimal Design Curve | {tipo_uso} {ancho:.0f}×{largo:.0f}m" if _L=="EN" else f"SkyPlus — Curva de Diseño Óptimo | {tipo_uso} {ancho:.0f}×{largo:.0f}m"), font=dict(size=15)),
         xaxis=dict(title="SFR (%)", ticksuffix="%", dtick=1, gridcolor="#f0f0f0"),
-        yaxis=dict(title="Energía (kWh/año)", gridcolor="#f0f0f0"),
+        yaxis=dict(title=("Energy (kBtu/yr)" if _L=="EN" else "Energía (kWh/año)"), gridcolor="#f0f0f0"),
         hovermode="x unified", template="plotly_white",
         legend=dict(orientation="h", yanchor="bottom", y=1.05, xanchor="right", x=1),
         height=560, margin=dict(b=60, r=130),
         annotations=[dict(
             x=sfr_opt, y=neto_opt,
-            text=f"Óptimo energía: {sfr_opt}% | {neto_opt:,.0f} kWh/año ({pct_opt:.1f}%)",
+            text=(f"Energy optimal: {sfr_opt}% | {neto_opt*CONVERSION['kwh_to_kbtu']:,.0f} kBtu/yr ({pct_opt:.1f}%)" if _L=="EN" else f"Óptimo energía: {sfr_opt}% | {neto_opt:,.0f} kWh/año ({pct_opt:.1f}%)"),
             showarrow=True, arrowhead=2, arrowcolor="#2ecc71",
             font=dict(size=11, color="#2ecc71"),
             bgcolor="white", bordercolor="#2ecc71", borderwidth=1, ay=-45,
         )],
     )
-    fig.update_yaxes(title_text="Iluminancia Promedio horas sol útil (lux)",
+    fig.update_yaxes(title_text=("Average illuminance — daylight hours (fc)" if _L=="EN" else "Iluminancia Promedio horas sol útil (lux)"),
                      secondary_y=True, showgrid=False, rangemode="tozero")
 
     # Texto ejecutivo
@@ -1278,25 +1309,47 @@ def calcular_curva_sfr(config, callback=None, sql_base_existente=None):
     lux_rec = fc_lux[idx_rec]
     pct_rec = kwh_rec / kwh_base_total * 100
 
+    _nrg_rec = fmt_energy(kwh_rec, _U)
+    _nrg_opt = fmt_energy(neto_opt, _U)
+    _lux_rec = fmt_illuminance(lux_rec, _U, 0)
     if sfr_dual is not None and sfr_dual != sfr_opt:
-        recomendacion = (
-            f"**Recomendación SkyPlus: SFR = {sfr_rec}% — Óptimo Dual**\n\n"
-            f"Ahorro garantizado: **{kwh_rec:,.0f} kWh/año ({pct_rec:.1f}%)**  \n"
-            f"Confort visual: **{lux_rec:.0f} lux** promedio zona — ISO 8995-1 + IES RP-7 ✅\n\n"
-            f"*SFR={sfr_opt}% maximiza el ahorro ({neto_opt:,.0f} kWh/año, {pct_opt:.1f}%) "
-            f"pero puede requerir verificación espacial de confort. "
-            f"Solicita un estudio BEM para validar distribución punto por punto.*"
-        )
+        if _L == "EN":
+            recomendacion = (
+                f"**SkyPlus recommendation: SFR = {sfr_rec}% — Dual Optimal**\n\n"
+                f"Guaranteed savings: **{_nrg_rec} ({pct_rec:.1f}%)**  \n"
+                f"Visual comfort: **{_lux_rec}** avg workplane — ISO 8995-1 + IES RP-7 ✅\n\n"
+                f"*SFR={sfr_opt}% maximizes savings ({_nrg_opt}, {pct_opt:.1f}%) "
+                f"but may require spatial comfort verification. "
+                f"Request a BEM study to validate point-by-point distribution.*"
+            )
+        else:
+            recomendacion = (
+                f"**Recomendación SkyPlus: SFR = {sfr_rec}% — Óptimo Dual**\n\n"
+                f"Ahorro garantizado: **{_nrg_rec} ({pct_rec:.1f}%)**  \n"
+                f"Confort visual: **{_lux_rec}** promedio zona — ISO 8995-1 + IES RP-7 ✅\n\n"
+                f"*SFR={sfr_opt}% maximiza el ahorro ({_nrg_opt}, {pct_opt:.1f}%) "
+                f"pero puede requerir verificación espacial de confort. "
+                f"Solicita un estudio BEM para validar distribución punto por punto.*"
+            )
     else:
-        recomendacion = (
-            f"**Recomendación SkyPlus: SFR = {sfr_rec}% — Óptimo Energético**\n\n"
-            f"Ahorro proyectado: **{kwh_rec:,.0f} kWh/año ({pct_rec:.1f}%)**  \n"
-            f"Iluminancia promedio zona: **{lux_rec:.0f} lux**\n\n"
-            f"*Resultados generados por EnergyPlus 23.2 (DOE). "
-            f"Para validación LEED o certificaciones, solicita un estudio BEM detallado.*"
-        )
+        if _L == "EN":
+            recomendacion = (
+                f"**SkyPlus recommendation: SFR = {sfr_rec}% — Energy Optimal**\n\n"
+                f"Projected savings: **{_nrg_rec} ({pct_rec:.1f}%)**  \n"
+                f"Average workplane illuminance: **{_lux_rec}**\n\n"
+                f"*Results generated by EnergyPlus 23.2 (DOE). "
+                f"For LEED validation or certifications, request a detailed BEM study.*"
+            )
+        else:
+            recomendacion = (
+                f"**Recomendación SkyPlus: SFR = {sfr_rec}% — Óptimo Energético**\n\n"
+                f"Ahorro proyectado: **{_nrg_rec} ({pct_rec:.1f}%)**  \n"
+                f"Iluminancia promedio zona: **{_lux_rec}**\n\n"
+                f"*Resultados generados por EnergyPlus 23.2 (DOE). "
+                f"Para validación LEED o certificaciones, solicita un estudio BEM detallado.*"
+            )
 
-    _cb(n_sims, n_sims, "¡Simulación completa!")
+    _cb(n_sims, n_sims, ("Simulation complete!" if _L=="EN" else "¡Simulación completa!"))
 
     return {
         "tabla":            df_tabla,
