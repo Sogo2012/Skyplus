@@ -7,7 +7,12 @@
 
 import os
 import time
+import logging
+import traceback
 import streamlit as st
+
+logging.basicConfig(level=logging.INFO, format="%(asctime)s [SKYPLUS] %(message)s")
+_log = logging.getLogger("skyplus")
 import pandas as pd
 import numpy as np
 import folium
@@ -472,10 +477,17 @@ with st.sidebar:
     # ─────────────────────────────────────────────────────────────────────
 
     _prev_u = st.session_state.get("_prev_units", _U)
+
+    _log.info(f"[TOGGLE] _prev_u={_prev_u} | _U={_U} | "
+              f"ni_ancho={st.session_state.get('ni_ancho')} | "
+              f"ni_largo={st.session_state.get('ni_largo')} | "
+              f"ni_alto={st.session_state.get('ni_alto')}")
+
     if _prev_u != _U:
         _a = float(st.session_state.get("ni_ancho") or st.session_state.get("_ancho_usr") or 50.0)
         _l = float(st.session_state.get("ni_largo") or st.session_state.get("_largo_usr") or 100.0)
         _h = float(st.session_state.get("ni_alto")  or st.session_state.get("_alto_usr")  or 8.0)
+        _log.info(f"[TOGGLE] CAMBIO DETECTADO — convirtiendo: a={_a} l={_l} h={_h} → nuevo _U={_U}")
         if _U == "imperial":
             st.session_state["ni_ancho"] = float(max(33.0,  min(460.0, round(_a * _M2FT))))
             st.session_state["ni_largo"] = float(max(33.0,  min(460.0, round(_l * _M2FT))))
@@ -484,6 +496,8 @@ with st.sidebar:
             st.session_state["ni_ancho"] = float(max(10.0,  min(140.0, round(_a * _FT2M))))
             st.session_state["ni_largo"] = float(max(10.0,  min(140.0, round(_l * _FT2M))))
             st.session_state["ni_alto"]  = float(max(3.0,   min(30.0,  round(_h * _FT2M * 2) / 2)))
+        _log.info(f"[TOGGLE] Después conversión: ni_ancho={st.session_state['ni_ancho']} | "
+                  f"ni_largo={st.session_state['ni_largo']} | ni_alto={st.session_state['ni_alto']}")
         st.session_state["_prev_units"] = _U
         st.rerun()  # ← CLAVE: fuerza un run limpio donde el widget ya ve los valores convertidos
 
@@ -506,17 +520,25 @@ with st.sidebar:
     ]:
         _v = st.session_state.get(_k)
         if _v is not None and not (_mn <= float(_v) <= _mx):
+            _log.warning(f"[CLAMP] {_k}={_v} fuera de rango [{_mn},{_mx}] → reseteando a {_df}")
             st.session_state[_k] = _df
+
+    _log.info(f"[WIDGET] Antes de number_input: ni_ancho={st.session_state.get('ni_ancho')} "
+              f"ni_largo={st.session_state.get('ni_largo')} ni_alto={st.session_state.get('ni_alto')} "
+              f"_U={_U} rangos ancho=[{_w_min},{_w_max}]")
 
     # Capa 3: try/except — si aun así falla, usar session_state como fallback
     try:
         _ancho_usr = st.number_input(T("width_m",  _L), min_value=_w_min, max_value=_w_max, value=_w_def, step=_w_step, key="ni_ancho")
         _largo_usr = st.number_input(T("length_m", _L), min_value=_l_min, max_value=_l_max, value=_l_def, step=_l_step, key="ni_largo")
         _alto_usr  = st.number_input(T("height_m", _L), min_value=_h_min, max_value=_h_max, value=_h_def, step=_h_step, key="ni_alto")
-    except Exception:
+        _log.info(f"[WIDGET] number_input OK: _ancho_usr={_ancho_usr} _largo_usr={_largo_usr} _alto_usr={_alto_usr}")
+    except Exception as _exc:
+        _log.error(f"[WIDGET] number_input FALLÓ: {_exc}\n{traceback.format_exc()}")
         _ancho_usr = float(st.session_state.get("_ancho_usr") or _w_def)
         _largo_usr = float(st.session_state.get("_largo_usr") or _l_def)
         _alto_usr  = float(st.session_state.get("_alto_usr")  or _h_def)
+        _log.info(f"[WIDGET] Fallback desde session_state: {_ancho_usr} {_largo_usr} {_alto_usr}")
 
     # Guardar en session_state para acceso fuera del sidebar
     st.session_state["_ancho_usr"] = _ancho_usr
