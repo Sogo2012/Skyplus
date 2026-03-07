@@ -1049,8 +1049,6 @@ def simular_caso_diseno(config, callback=None):
 
     # Texto de recomendación
     lux_setpoint = PERFILES_ASHRAE.get(tipo_uso, PERFILES_ASHRAE["Warehouse"])["lux"]
-    _dim_str = (f"{_ancho_usr:.0f}×{_largo_usr:.0f} ft" if _U=="imperial"
-               else f"{ancho:.0f}×{largo:.0f}m")
     _ancho_usr = ancho * _FT if _U=="imperial" else ancho
     _largo_usr = largo * _FT if _U=="imperial" else largo
     _dim_str   = f"{_ancho_usr:.0f}×{_largo_usr:.0f} {'ft' if _U=='imperial' else 'm'}"
