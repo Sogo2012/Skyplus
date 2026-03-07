@@ -467,10 +467,10 @@ with st.sidebar:
     # rango → UnboundLocalError es imposible por diseño.
     # ─────────────────────────────────────────────────────────────────────
 
-    # Leer última medida conocida en metros (defaults SI)
-    _a_m = float(st.session_state.get("_ancho_usr") or 50.0)
-    _l_m = float(st.session_state.get("_largo_usr") or 100.0)
-    _h_m = float(st.session_state.get("_alto_usr")  or 8.0)
+    # Leer la VERDAD MÉTRICA — siempre en metros, nunca en pies
+    _a_m = float(st.session_state.get("_ancho_usr_base") or 50.0)
+    _l_m = float(st.session_state.get("_largo_usr_base") or 100.0)
+    _h_m = float(st.session_state.get("_alto_usr_base")  or 8.0)
 
     if _U == "imperial":
         # Convertir metros → pies para el widget, con clamping de seguridad
@@ -574,6 +574,14 @@ with st.sidebar:
     st.session_state["_sfr_target"] = sfr_target
     st.session_state["_modelo_sel"] = modelo_sel
     st.session_state["_tipo_uso"]   = tipo_uso
+    # Verdad métrica — para conversión correcta en el próximo toggle
+    st.session_state["_ancho_usr_base"] = ancho_nave
+    st.session_state["_largo_usr_base"] = largo_nave
+    st.session_state["_alto_usr_base"]  = alto_nave
+    # Valor de display (pies o metros) — para textos UI
+    st.session_state["_ancho_usr"] = _ancho_usr
+    st.session_state["_largo_usr"] = _largo_usr
+    st.session_state["_alto_usr"]  = _alto_usr
 
 
 # =============================================================================
