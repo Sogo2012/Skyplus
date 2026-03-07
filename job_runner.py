@@ -298,7 +298,7 @@ def _draw_header(canvas_obj, doc, eco_path, sun_path, seccion=""):
         if seccion:
             canvas_obj.setFillColor(ECO_GRIS)
             canvas_obj.setFont("Helvetica", 7)
-            canvas_obj.drawCentredString(W/2, _center_y - 0.25*cm, seccion.upper())
+            canvas_obj.drawCentredString(W/2, _center_y - 0.25*cm, seccion)
 
         # Logo Sunoptics — horizontal, centrado en el mismo eje
         _sun_h = 1.15*cm
@@ -447,12 +447,20 @@ def generar_pdf(config, resultado, lead):
     s_cta_b     = s('CB', fontSize=9,  textColor=white,     leading=13)
     s_disc      = s('DC', fontSize=7.5,textColor=ECO_GRIS,  leading=11, backColor=ECO_CLARO, borderPadding=6)
 
-    secciones = [
-        "",                                    # Pág 1 — sin texto en portada
-        "Modelo Geométrico",
-        "Análisis Energético",
-        ("Visual Comfort & Recommendation" if _L=="EN" else "Confort Visual & Recomendación"),
-    ]
+    if _L == "EN":
+        secciones = [
+            "",
+            "Geometric Model",
+            "Energy Analysis",
+            "Visual Comfort & Recommendation",
+        ]
+    else:
+        secciones = [
+            "",
+            "MODELO GEOMÉTRICO",
+            "ANÁLISIS ENERGÉTICO",
+            "CONFORT VISUAL & RECOMENDACIÓN",
+        ]
 
     story = []
 
