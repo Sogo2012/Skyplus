@@ -461,96 +461,39 @@ with st.sidebar:
     _FT2M = 1 / CONVERSION["m_to_ft"]
     _M2FT = CONVERSION["m_to_ft"]
 
-    # ── FIX v22.5 — Toggle bilingüe: conversión + rerun + clamping + fallback ──
-    #
-    # POR QUÉ FALLÓ v22.4:
-    # Streamlit 1.32 NO acepta que modifiques st.session_state["ni_ancho"]
-    # y rendericen el widget en el MISMO run. El widget ignora el cambio
-    # y usa el valor anterior (fuera de rango) → StreamlitAPIException →
-    # _ancho_usr nunca se asigna → UnboundLocalError.
-    #
-    # SOLUCIÓN v22.5 — tres capas de defensa:
-    # 1. Detectar cambio → convertir → st.rerun()  (el SIGUIENTE run ya
-    #    tiene los valores correctos en session_state y el widget los acepta)
-    # 2. Clampear justo antes de number_input como red de seguridad
-    # 3. try/except alrededor de number_input como último recurso
+    # ── FIX v22.6 — Keys separadas por sistema de unidades ───────────────
+    # La VERDAD siempre se guarda en METROS en session_state["_ancho_usr"].
+    # Cada sistema tiene su propia key → Streamlit nunca ve valor fuera de
+    # rango → UnboundLocalError es imposible por diseño.
     # ─────────────────────────────────────────────────────────────────────
 
-    _prev_u = st.session_state.get("_prev_units", _U)
-
-    _log.info(f"[TOGGLE] _prev_u={_prev_u} | _U={_U} | "
-              f"ni_ancho={st.session_state.get('ni_ancho')} | "
-              f"ni_largo={st.session_state.get('ni_largo')} | "
-              f"ni_alto={st.session_state.get('ni_alto')}")
-
-    if _prev_u != _U:
-        _a = float(st.session_state.get("ni_ancho") or st.session_state.get("_ancho_usr") or 50.0)
-        _l = float(st.session_state.get("ni_largo") or st.session_state.get("_largo_usr") or 100.0)
-        _h = float(st.session_state.get("ni_alto")  or st.session_state.get("_alto_usr")  or 8.0)
-        _log.info(f"[TOGGLE] CAMBIO DETECTADO — convirtiendo: a={_a} l={_l} h={_h} → nuevo _U={_U}")
-        if _U == "imperial":
-            st.session_state["ni_ancho"] = float(max(33.0,  min(460.0, round(_a * _M2FT))))
-            st.session_state["ni_largo"] = float(max(33.0,  min(460.0, round(_l * _M2FT))))
-            st.session_state["ni_alto"]  = float(max(10.0,  min(100.0, round(_h * _M2FT))))
-        else:
-            st.session_state["ni_ancho"] = float(max(10.0,  min(140.0, round(_a * _FT2M))))
-            st.session_state["ni_largo"] = float(max(10.0,  min(140.0, round(_l * _FT2M))))
-            st.session_state["ni_alto"]  = float(max(3.0,   min(30.0,  round(_h * _FT2M * 2) / 2)))
-        _log.info(f"[TOGGLE] Después conversión: ni_ancho={st.session_state['ni_ancho']} | "
-                  f"ni_largo={st.session_state['ni_largo']} | ni_alto={st.session_state['ni_alto']}")
-        st.session_state["_prev_units"] = _U
-        st.rerun()  # ← CLAVE: fuerza un run limpio donde el widget ya ve los valores convertidos
-
-    st.session_state["_prev_units"] = _U
+    # Leer última medida conocida en metros (defaults SI)
+    _a_m = float(st.session_state.get("_ancho_usr") or 50.0)
+    _l_m = float(st.session_state.get("_largo_usr") or 100.0)
+    _h_m = float(st.session_state.get("_alto_usr")  or 8.0)
 
     if _U == "imperial":
-        _w_min, _w_max, _w_def, _w_step = 33.0,  460.0, 164.0, 1.0
-        _l_min, _l_max, _l_def, _l_step = 33.0,  460.0, 328.0, 1.0
-        _h_min, _h_max, _h_def, _h_step = 10.0,  100.0,  26.0, 1.0
+        # Convertir metros → pies para el widget, con clamping de seguridad
+        _a_ft = float(max(33.0,  min(460.0, round(_a_m * _M2FT))))
+        _l_ft = float(max(33.0,  min(460.0, round(_l_m * _M2FT))))
+        _h_ft = float(max(10.0,  min(100.0, round(_h_m * _M2FT))))
+        _ancho_disp = st.number_input(T("width_m",  _L), min_value=33.0,  max_value=460.0, value=_a_ft, step=1.0,  key="ni_ancho_imp")
+        _largo_disp = st.number_input(T("length_m", _L), min_value=33.0,  max_value=460.0, value=_l_ft, step=1.0,  key="ni_largo_imp")
+        _alto_disp  = st.number_input(T("height_m", _L), min_value=10.0,  max_value=100.0, value=_h_ft, step=1.0,  key="ni_alto_imp")
+        _ancho_usr = _ancho_disp          # pies — lo que ve el usuario
+        _largo_usr = _largo_disp
+        _alto_usr  = _alto_disp
+        ancho_nave = _ancho_disp * _FT2M  # metros — para EnergyPlus
+        largo_nave = _largo_disp * _FT2M
+        alto_nave  = _alto_disp  * _FT2M
     else:
-        _w_min, _w_max, _w_def, _w_step = 10.0,  140.0,  50.0, 1.0
-        _l_min, _l_max, _l_def, _l_step = 10.0,  140.0, 100.0, 1.0
-        _h_min, _h_max, _h_def, _h_step =  3.0,   30.0,   8.0, 0.5
-
-    # Capa 2: clampear si por alguna razón el valor sigue fuera de rango
-    for _k, _mn, _mx, _df in [
-        ("ni_ancho", _w_min, _w_max, _w_def),
-        ("ni_largo", _l_min, _l_max, _l_def),
-        ("ni_alto",  _h_min, _h_max, _h_def),
-    ]:
-        _v = st.session_state.get(_k)
-        if _v is not None and not (_mn <= float(_v) <= _mx):
-            _log.warning(f"[CLAMP] {_k}={_v} fuera de rango [{_mn},{_mx}] → reseteando a {_df}")
-            st.session_state[_k] = _df
-
-    _log.info(f"[WIDGET] Antes de number_input: ni_ancho={st.session_state.get('ni_ancho')} "
-              f"ni_largo={st.session_state.get('ni_largo')} ni_alto={st.session_state.get('ni_alto')} "
-              f"_U={_U} rangos ancho=[{_w_min},{_w_max}]")
-
-    # Capa 3: try/except — si aun así falla, usar session_state como fallback
-    try:
-        _ancho_usr = st.number_input(T("width_m",  _L), min_value=_w_min, max_value=_w_max, value=_w_def, step=_w_step, key="ni_ancho")
-        _largo_usr = st.number_input(T("length_m", _L), min_value=_l_min, max_value=_l_max, value=_l_def, step=_l_step, key="ni_largo")
-        _alto_usr  = st.number_input(T("height_m", _L), min_value=_h_min, max_value=_h_max, value=_h_def, step=_h_step, key="ni_alto")
-        _log.info(f"[WIDGET] number_input OK: _ancho_usr={_ancho_usr} _largo_usr={_largo_usr} _alto_usr={_alto_usr}")
-    except Exception as _exc:
-        _log.error(f"[WIDGET] number_input FALLÓ: {_exc}\n{traceback.format_exc()}")
-        _ancho_usr = float(st.session_state.get("_ancho_usr") or _w_def)
-        _largo_usr = float(st.session_state.get("_largo_usr") or _l_def)
-        _alto_usr  = float(st.session_state.get("_alto_usr")  or _h_def)
-        _log.info(f"[WIDGET] Fallback desde session_state: {_ancho_usr} {_largo_usr} {_alto_usr}")
-
-    # Guardar en session_state para acceso fuera del sidebar
-    st.session_state["_ancho_usr"] = _ancho_usr
-    st.session_state["_largo_usr"] = _largo_usr
-    st.session_state["_alto_usr"]  = _alto_usr
-
-    if _U == "imperial":
-        ancho_nave = _ancho_usr * _FT2M
-        largo_nave = _largo_usr * _FT2M
-        alto_nave  = _alto_usr  * _FT2M
-    else:
-        ancho_nave = _ancho_usr
+        _a_m2 = float(max(10.0, min(140.0, _a_m)))
+        _l_m2 = float(max(10.0, min(140.0, _l_m)))
+        _h_m2 = float(max(3.0,  min(30.0,  _h_m)))
+        _ancho_usr = st.number_input(T("width_m",  _L), min_value=10.0, max_value=140.0, value=_a_m2, step=1.0,  key="ni_ancho_met")
+        _largo_usr = st.number_input(T("length_m", _L), min_value=10.0, max_value=140.0, value=_l_m2, step=1.0,  key="ni_largo_met")
+        _alto_usr  = st.number_input(T("height_m", _L), min_value=3.0,  max_value=30.0,  value=_h_m2, step=0.5,  key="ni_alto_met")
+        ancho_nave = _ancho_usr           # metros — idéntico para EnergyPlus
         largo_nave = _largo_usr
         alto_nave  = _alto_usr
 
