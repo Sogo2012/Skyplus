@@ -102,8 +102,8 @@ PERFILES_ASHRAE = {
     "MediumOffice": {"lpd":10.8, "eq":10.8,  "m2p": 10.0, "inf":0.0002,"vent":0.6,"lux":500,"calef":21.1,"enfriam":23.9},
 }
 
-U_TECHO_ASHRAE = {t: {2:0.317,3:0.220,4:0.161,5:0.144} for t in PERFILES_ASHRAE}
-U_TECHO_ASHRAE["MediumOffice"] = {2:0.220,3:0.220,4:0.161,5:0.119}
+U_TECHO_ASHRAE = {t: {1:0.365,2:0.317,3:0.220,4:0.161,5:0.144} for t in PERFILES_ASHRAE}  # Zona 1 = ASHRAE 90.1-2019 (Guía Maestra)
+U_TECHO_ASHRAE["MediumOffice"] = {1:0.365,2:0.220,3:0.220,4:0.161,5:0.119}
 
 HORARIOS_ASHRAE = {
     "Warehouse": {
@@ -292,7 +292,7 @@ def construir_modelo(ancho, largo, altura, tipo_uso, epw_path, sfr,
     p = PERFILES_ASHRAE[_tipo]
     h = HORARIOS_ASHRAE[_tipo]
 
-    zona_num = max(2, min(5, _detectar_zona_climatica(epw_path)))
+    zona_num = max(1, min(5, _detectar_zona_climatica(epw_path)))  # Zona 1 habilitada — fix Guayaquil
     u_techo  = U_TECHO_ASHRAE[_tipo].get(zona_num, U_TECHO_ASHRAE[_tipo][4])
 
     try:
@@ -1049,6 +1049,8 @@ def simular_caso_diseno(config, callback=None):
 
     # Texto de recomendación
     lux_setpoint = PERFILES_ASHRAE.get(tipo_uso, PERFILES_ASHRAE["Warehouse"])["lux"]
+    _dim_str = (f"{_ancho_usr:.0f}×{_largo_usr:.0f} ft" if _U=="imperial"
+               else f"{ancho:.0f}×{largo:.0f}m")
     _ancho_usr = ancho * _FT if _U=="imperial" else ancho
     _largo_usr = largo * _FT if _U=="imperial" else largo
     _dim_str   = f"{_ancho_usr:.0f}×{_largo_usr:.0f} {'ft' if _U=='imperial' else 'm'}"
