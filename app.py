@@ -456,31 +456,38 @@ with st.sidebar:
     _FT2M = 1 / CONVERSION["m_to_ft"]
     _M2FT = CONVERSION["m_to_ft"]
 
-    # ── FIX v22.4 — Conversión de unidades al cambiar el toggle ──────────
-    # CAUSA RAÍZ DEL BUG: cuando el usuario cambia ES↔EN, los valores
-    # almacenados en st.session_state["ni_ancho/largo/alto"] están en las
-    # unidades ANTERIORES. Si ese valor está fuera del rango min/max de las
-    # nuevas unidades, Streamlit lanza una excepción ANTES de ejecutar la
-    # línea _ancho_usr = st.number_input(...), dejando _ancho_usr sin asignar.
-    # Ejemplo: 10 m (mín métrico) < 33 ft (mín imperial) → crash al ir ES→EN.
-    # Ejemplo: 200 ft > 140 m (máx métrico) → crash al ir EN→ES.
-    # SOLUCIÓN: detectar el cambio de unidades y convertir + clampear los
-    # valores del widget ANTES de que number_input los lea.
+    # ── FIX v22.5 — Toggle bilingüe: conversión + rerun + clamping + fallback ──
+    #
+    # POR QUÉ FALLÓ v22.4:
+    # Streamlit 1.32 NO acepta que modifiques st.session_state["ni_ancho"]
+    # y rendericen el widget en el MISMO run. El widget ignora el cambio
+    # y usa el valor anterior (fuera de rango) → StreamlitAPIException →
+    # _ancho_usr nunca se asigna → UnboundLocalError.
+    #
+    # SOLUCIÓN v22.5 — tres capas de defensa:
+    # 1. Detectar cambio → convertir → st.rerun()  (el SIGUIENTE run ya
+    #    tiene los valores correctos en session_state y el widget los acepta)
+    # 2. Clampear justo antes de number_input como red de seguridad
+    # 3. try/except alrededor de number_input como último recurso
+    # ─────────────────────────────────────────────────────────────────────
+
     _prev_u = st.session_state.get("_prev_units", _U)
     if _prev_u != _U:
-        _a = st.session_state.get("ni_ancho", 50.0)
-        _l = st.session_state.get("ni_largo", 100.0)
-        _h = st.session_state.get("ni_alto",  8.0)
-        if _U == "imperial":  # metric → imperial: multiplicar por m_to_ft
-            st.session_state["ni_ancho"] = float(min(460.0, max(33.0,  round(_a * _M2FT))))
-            st.session_state["ni_largo"] = float(min(460.0, max(33.0,  round(_l * _M2FT))))
-            st.session_state["ni_alto"]  = float(min(100.0, max(10.0,  round(_h * _M2FT))))
-        else:                 # imperial → metric: dividir por m_to_ft
-            st.session_state["ni_ancho"] = float(min(140.0, max(10.0,  round(_a / _M2FT))))
-            st.session_state["ni_largo"] = float(min(140.0, max(10.0,  round(_l / _M2FT))))
-            st.session_state["ni_alto"]  = float(min(30.0,  max(3.0,   round(_h / _M2FT * 2) / 2)))
+        _a = float(st.session_state.get("ni_ancho") or st.session_state.get("_ancho_usr") or 50.0)
+        _l = float(st.session_state.get("ni_largo") or st.session_state.get("_largo_usr") or 100.0)
+        _h = float(st.session_state.get("ni_alto")  or st.session_state.get("_alto_usr")  or 8.0)
+        if _U == "imperial":
+            st.session_state["ni_ancho"] = float(max(33.0,  min(460.0, round(_a * _M2FT))))
+            st.session_state["ni_largo"] = float(max(33.0,  min(460.0, round(_l * _M2FT))))
+            st.session_state["ni_alto"]  = float(max(10.0,  min(100.0, round(_h * _M2FT))))
+        else:
+            st.session_state["ni_ancho"] = float(max(10.0,  min(140.0, round(_a * _FT2M))))
+            st.session_state["ni_largo"] = float(max(10.0,  min(140.0, round(_l * _FT2M))))
+            st.session_state["ni_alto"]  = float(max(3.0,   min(30.0,  round(_h * _FT2M * 2) / 2)))
+        st.session_state["_prev_units"] = _U
+        st.rerun()  # ← CLAVE: fuerza un run limpio donde el widget ya ve los valores convertidos
+
     st.session_state["_prev_units"] = _U
-    # ─────────────────────────────────────────────────────────────────────
 
     if _U == "imperial":
         _w_min, _w_max, _w_def, _w_step = 33.0,  460.0, 164.0, 1.0
@@ -491,11 +498,25 @@ with st.sidebar:
         _l_min, _l_max, _l_def, _l_step = 10.0,  140.0, 100.0, 1.0
         _h_min, _h_max, _h_def, _h_step =  3.0,   30.0,   8.0, 0.5
 
-    # Key fija (sin _{_U}): el label/min/max/step cambian con _U,
-    # pero la key es estable para que Streamlit no destruya el widget.
-    _ancho_usr = st.number_input(T("width_m",  _L), min_value=_w_min, max_value=_w_max, value=_w_def, step=_w_step, key="ni_ancho")
-    _largo_usr = st.number_input(T("length_m", _L), min_value=_l_min, max_value=_l_max, value=_l_def, step=_l_step, key="ni_largo")
-    _alto_usr  = st.number_input(T("height_m", _L), min_value=_h_min, max_value=_h_max, value=_h_def, step=_h_step, key="ni_alto")
+    # Capa 2: clampear si por alguna razón el valor sigue fuera de rango
+    for _k, _mn, _mx, _df in [
+        ("ni_ancho", _w_min, _w_max, _w_def),
+        ("ni_largo", _l_min, _l_max, _l_def),
+        ("ni_alto",  _h_min, _h_max, _h_def),
+    ]:
+        _v = st.session_state.get(_k)
+        if _v is not None and not (_mn <= float(_v) <= _mx):
+            st.session_state[_k] = _df
+
+    # Capa 3: try/except — si aun así falla, usar session_state como fallback
+    try:
+        _ancho_usr = st.number_input(T("width_m",  _L), min_value=_w_min, max_value=_w_max, value=_w_def, step=_w_step, key="ni_ancho")
+        _largo_usr = st.number_input(T("length_m", _L), min_value=_l_min, max_value=_l_max, value=_l_def, step=_l_step, key="ni_largo")
+        _alto_usr  = st.number_input(T("height_m", _L), min_value=_h_min, max_value=_h_max, value=_h_def, step=_h_step, key="ni_alto")
+    except Exception:
+        _ancho_usr = float(st.session_state.get("_ancho_usr") or _w_def)
+        _largo_usr = float(st.session_state.get("_largo_usr") or _l_def)
+        _alto_usr  = float(st.session_state.get("_alto_usr")  or _h_def)
 
     # Guardar en session_state para acceso fuera del sidebar
     st.session_state["_ancho_usr"] = _ancho_usr
